@@ -8,14 +8,14 @@ import { createTRPCRouter, publicProcedure } from "../create-context";
 // Then replace Bella's ID below with Sarah's ID.
 const ELEVENLABS_VOICES = {
   female: [
-    { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Bella', lang: 'multilingual' },
-    { id: '21m00Tcm4TlvDq8ikWAM', name: 'Rachel', lang: 'en-US' },
-    { id: 'MF3mGyEYCl7XYWbV9V6O', name: 'Elli', lang: 'en-US' },
+    { id: 'jsCqWAovK2zikigpJZZa', name: 'Freya', lang: 'multilingual' },
+    { id: 'jBpfuIE2acCO8z3wKNLl', name: 'Gigi', lang: 'multilingual' },
+    { id: 'XrExE9yKIg1WjnnlVkGX', name: 'Matilda', lang: 'multilingual' },
   ],
   male: [
-    { id: 'pNInz6obpgDQGcFmaJgB', name: 'Adam', lang: 'en-US' },
-    { id: 'ErXwobaYiN019PkySvjV', name: 'Antoni', lang: 'en-US' },
-    { id: 'TxGEqnHWrfWFTfGW9XjX', name: 'Josh', lang: 'en-US' },
+    { id: 'N2lVS1w4EtoT3dr4eOWO', name: 'Callum', lang: 'multilingual' },
+    { id: 'IKne3meq5aSn9XLyUdCD', name: 'Charlie', lang: 'multilingual' },
+    { id: 'D38z5RcWu1voky8WS1ja', name: 'Fin', lang: 'multilingual' },
   ],
 };
 

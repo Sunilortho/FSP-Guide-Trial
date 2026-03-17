@@ -635,9 +635,9 @@ export default function VoiceFSPScreen() {
       setTtsEngine('fallback');
       await Speech.stop();
 
-      // More distinct pitch separation: female stays natural, male goes noticeably lower
-      const finalPitch = patientGender === 'female' ? 1.10 : 0.60;
-      const finalRate = patientGender === 'female' ? 0.95 : 0.85;
+      // Keep pitch close to 1.0 to prevent severe distortion in native TTS
+      const finalPitch = patientGender === 'female' ? 1.05 : 0.95;
+      const finalRate = patientGender === 'female' ? 0.95 : 0.90;
 
       console.warn(`[VoiceFSP] FALLBACK expo-speech | ${patientGender} | pitch=${finalPitch} | rate=${finalRate}`);
 

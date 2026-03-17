@@ -1,5 +1,5 @@
 {
-  "name": "",
-  "description": "",
-  "requestFramePermissions": []
+  "name": "FSP Guide for busy professionals",
+  "description": "A high-efficiency FSP exam preparation tool designed for busy medical professionals, featuring AI patient simulations and senior physician grillings.",
+  "requestFramePermissions": ["microphone"]
 }
