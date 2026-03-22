@@ -5,6 +5,7 @@ import { Mic, MicOff, Settings, User, Activity, Play, Square, Loader2, ArrowLeft
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PATIENT_SCENARIOS } from '../constants/patientScenarios';
+import AuthGuard from '../components/AuthGuard';
 
 type Message = {
   id: string;
@@ -442,6 +443,7 @@ export default function SimulatorPage() {
     handleSend("Guten Tag, ich bin der behandelnde Arzt. Wie kann ich Ihnen helfen?");
   };
   return (
+    <AuthGuard>
     <div className="min-h-screen bg-[#F8F9FA] flex flex-col font-sans text-[#1A1A1A]">
       {/* Header */}
       <header className="bg-white border-b border-[#E5E7EB] px-4 py-3 flex items-center justify-between sticky top-0 z-10 shadow-sm">
@@ -789,5 +791,6 @@ export default function SimulatorPage() {
         )}
       </main>
     </div>
+    </AuthGuard>
   );
 }

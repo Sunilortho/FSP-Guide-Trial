@@ -5,6 +5,7 @@ import { Mic, MicOff, User, Activity, Play, Square, Loader2, ArrowLeft, MessageS
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PATIENT_SCENARIOS } from '../constants/patientScenarios';
+import AuthGuard from '../components/AuthGuard';
 
 type Message = {
   id: string;
@@ -153,6 +154,7 @@ export default function OberarztPage() {
   };
 
   return (
+    <AuthGuard>
     <div className="min-h-screen bg-[#F8F9FA] text-[#1A1A1A] font-sans flex flex-col">
       {/* Header */}
       <header className="bg-white border-b border-[#E5E7EB] px-6 py-4 flex items-center justify-between sticky top-0 z-10 shadow-sm">
@@ -339,5 +341,6 @@ export default function OberarztPage() {
         </div>
       )}
     </div>
+    </AuthGuard>
   );
 }

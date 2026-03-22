@@ -1,31 +1,60 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { auth, db } from '@/lib/firebase';
-import { signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, User } from 'firebase/auth';
-import { doc, setDoc, getDoc, collection, query, where, getDocs, serverTimestamp, Timestamp } from 'firebase/firestore';
-import { Stethoscope, User as UserIcon, LogOut, BookOpen, Download, Play, FileText, Activity } from 'lucide-react';
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  signOut, 
+  onAuthStateChanged, 
+  User 
+} from 'firebase/auth';
+import { doc, setDoc, getDoc, updateDoc, increment, collection, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
+import { Stethoscope, User as UserIcon, LogOut, BookOpen, Play, FileText, Activity, Mail, Lock, AlertTriangle, Shield } from 'lucide-react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 
-export default function Home() {
+const MAX_TRIAL_LOGINS = 2;
+
+function HomeContent() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [sessions, setSessions] = useState<any[]>([]);
+  const [loginCount, setLoginCount] = useState(0);
+  const [trialExpired, setTrialExpired] = useState(false);
+
+  // Auth form state
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [authLoading, setAuthLoading] = useState(false);
+
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get('expired') === 'true') {
+      setTrialExpired(true);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
-        // Ensure user profile exists
+        // Check user profile and login count
         const userRef = doc(db, 'users', currentUser.uid);
         const userSnap = await getDoc(userRef);
-        if (!userSnap.exists()) {
-          await setDoc(userRef, {
-            uid: currentUser.uid,
-            email: currentUser.email,
-            displayName: currentUser.displayName || 'Doctor',
-            createdAt: serverTimestamp(),
-          });
+        
+        if (userSnap.exists()) {
+          const data = userSnap.data();
+          const count = data.loginCount || 0;
+          setLoginCount(count);
+          
+          if (count > MAX_TRIAL_LOGINS) {
+            setTrialExpired(true);
+          }
         }
         
         // Fetch practice sessions
@@ -35,6 +64,7 @@ export default function Home() {
         setSessions(userSessions);
       } else {
         setSessions([]);
+        setLoginCount(0);
       }
       setLoading(false);
     });
@@ -42,18 +72,107 @@ export default function Home() {
     return () => unsubscribe();
   }, []);
 
-  const handleSignIn = async () => {
-    const provider = new GoogleAuthProvider();
+  const handleSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError(null);
+    setAuthLoading(true);
+
     try {
-      await signInWithPopup(auth, provider);
-    } catch (error) {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const currentUser = userCredential.user;
+
+      // Check and increment login count
+      const userRef = doc(db, 'users', currentUser.uid);
+      const userSnap = await getDoc(userRef);
+      
+      if (userSnap.exists()) {
+        const data = userSnap.data();
+        const currentCount = data.loginCount || 0;
+        
+        if (currentCount >= MAX_TRIAL_LOGINS) {
+          setTrialExpired(true);
+          setLoginCount(currentCount);
+          setAuthLoading(false);
+          return;
+        }
+        
+        // Increment login count
+        await updateDoc(userRef, {
+          loginCount: increment(1),
+        });
+        setLoginCount(currentCount + 1);
+      }
+
+      setEmail('');
+      setPassword('');
+    } catch (error: any) {
       console.error('Error signing in:', error);
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+        setAuthError('Ungültige E-Mail oder Passwort. Bitte versuchen Sie es erneut.');
+      } else if (error.code === 'auth/wrong-password') {
+        setAuthError('Falsches Passwort. Bitte versuchen Sie es erneut.');
+      } else if (error.code === 'auth/too-many-requests') {
+        setAuthError('Zu viele Anmeldeversuche. Bitte versuchen Sie es später erneut.');
+      } else {
+        setAuthError('Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.');
+      }
     }
+    setAuthLoading(false);
+  };
+
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError(null);
+
+    if (password !== confirmPassword) {
+      setAuthError('Passwörter stimmen nicht überein.');
+      return;
+    }
+
+    if (password.length < 6) {
+      setAuthError('Passwort muss mindestens 6 Zeichen lang sein.');
+      return;
+    }
+
+    setAuthLoading(true);
+
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const currentUser = userCredential.user;
+
+      // Create user profile with initial login count of 1 (sign-up = first access)
+      const userRef = doc(db, 'users', currentUser.uid);
+      await setDoc(userRef, {
+        uid: currentUser.uid,
+        email: currentUser.email,
+        displayName: currentUser.email?.split('@')[0] || 'Doctor',
+        createdAt: serverTimestamp(),
+        loginCount: 1,
+      });
+      setLoginCount(1);
+
+      setEmail('');
+      setPassword('');
+      setConfirmPassword('');
+    } catch (error: any) {
+      console.error('Error signing up:', error);
+      if (error.code === 'auth/email-already-in-use') {
+        setAuthError('Diese E-Mail-Adresse wird bereits verwendet. Bitte melden Sie sich an.');
+      } else if (error.code === 'auth/invalid-email') {
+        setAuthError('Ungültige E-Mail-Adresse.');
+      } else if (error.code === 'auth/weak-password') {
+        setAuthError('Das Passwort ist zu schwach. Mindestens 6 Zeichen erforderlich.');
+      } else {
+        setAuthError('Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.');
+      }
+    }
+    setAuthLoading(false);
   };
 
   const handleSignOut = async () => {
     try {
       await signOut(auth);
+      setTrialExpired(false);
     } catch (error) {
       console.error('Error signing out:', error);
     }
@@ -61,7 +180,7 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0A0E14]">
+      <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00B4D8]"></div>
       </div>
     );
@@ -78,16 +197,24 @@ export default function Home() {
             <h1 className="text-xl font-bold tracking-tight text-[#111827]">
               FSP Guide for <span className="font-serif italic font-medium">busy professionals</span>
             </h1>
+            <span className="text-[10px] font-black text-[#F59E0B] uppercase tracking-[0.15em]">Trial Version</span>
           </div>
         </div>
         
         {user ? (
           <div className="flex items-center gap-6">
+            {/* Trial Badge */}
+            {!trialExpired && (
+              <div className="flex items-center gap-2 bg-[#FEF3C7] text-[#92400E] text-xs font-bold px-3 py-1.5 rounded-full border border-[#FDE68A]">
+                <Shield className="w-3.5 h-3.5" />
+                Trial: {MAX_TRIAL_LOGINS - loginCount + 1 > 0 ? `${MAX_TRIAL_LOGINS - loginCount + 1} of ${MAX_TRIAL_LOGINS} remaining` : 'Expired'}
+              </div>
+            )}
             <div className="flex items-center gap-2 text-sm font-medium text-[#4B5563]">
               <div className="w-8 h-8 rounded-full bg-[#F3F4F6] flex items-center justify-center border border-[#E5E7EB]">
                 <UserIcon className="w-4 h-4 text-[#6B7280]" />
               </div>
-              {user.displayName || user.email}
+              {user.email}
             </div>
             <button 
               onClick={handleSignOut}
@@ -97,14 +224,7 @@ export default function Home() {
               Sign Out
             </button>
           </div>
-        ) : (
-          <button 
-            onClick={handleSignIn}
-            className="px-5 py-2.5 bg-[#111827] hover:bg-black text-white text-sm font-bold rounded-xl transition-all shadow-sm"
-          >
-            Sign In
-          </button>
-        )}
+        ) : null}
       </header>
 
       <main className="max-w-5xl mx-auto px-6 py-16">
@@ -118,12 +238,138 @@ export default function Home() {
               The definitive FSP preparation tool for <span className="font-serif italic">busy professionals</span>. 
               High-fidelity AI simulations, instant feedback, and structured learning paths.
             </p>
-            <button 
-              onClick={handleSignIn}
-              className="px-10 py-4 bg-[#111827] hover:bg-black text-white text-lg font-bold rounded-2xl transition-all shadow-xl hover:shadow-2xl hover:-translate-y-1 active:translate-y-0"
-            >
-              Start Training Now
-            </button>
+
+            {/* Email/Password Auth Form */}
+            <div className="max-w-md mx-auto bg-white rounded-[32px] border border-[#E5E7EB] p-8 shadow-sm">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 bg-[#00B4D8] rounded-xl flex items-center justify-center">
+                  <Mail className="w-5 h-5 text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-[#111827]">
+                  {isSignUp ? 'Konto erstellen' : 'Anmelden'}
+                </h3>
+              </div>
+
+              {/* Trial info banner */}
+              <div className="bg-[#FEF3C7] border border-[#FDE68A] rounded-2xl p-4 mb-6 text-left">
+                <div className="flex items-start gap-3">
+                  <Shield className="w-5 h-5 text-[#D97706] mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-sm font-bold text-[#92400E]">Kostenlose Testversion</p>
+                    <p className="text-xs text-[#B45309] mt-1">Sie haben <strong>{MAX_TRIAL_LOGINS} kostenlose Anmeldungen</strong>. Jede Anmeldung zählt als ein Zugriff.</p>
+                  </div>
+                </div>
+              </div>
+
+              <form onSubmit={isSignUp ? handleSignUp : handleSignIn} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-bold text-[#4B5563] mb-2 text-left">E-Mail</label>
+                  <div className="relative">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9CA3AF]" />
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="ihre@email.de"
+                      required
+                      className="w-full pl-11 pr-4 py-3 bg-[#F9FAFB] border border-[#E5E7EB] rounded-xl text-[#111827] placeholder-[#9CA3AF] focus:ring-2 focus:ring-[#00B4D8] focus:border-[#00B4D8] outline-none transition-all font-medium"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-[#4B5563] mb-2 text-left">Passwort</label>
+                  <div className="relative">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9CA3AF]" />
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      required
+                      minLength={6}
+                      className="w-full pl-11 pr-4 py-3 bg-[#F9FAFB] border border-[#E5E7EB] rounded-xl text-[#111827] placeholder-[#9CA3AF] focus:ring-2 focus:ring-[#00B4D8] focus:border-[#00B4D8] outline-none transition-all font-medium"
+                    />
+                  </div>
+                </div>
+
+                {isSignUp && (
+                  <div>
+                    <label className="block text-sm font-bold text-[#4B5563] mb-2 text-left">Passwort bestätigen</label>
+                    <div className="relative">
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9CA3AF]" />
+                      <input
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="••••••••"
+                        required
+                        minLength={6}
+                        className="w-full pl-11 pr-4 py-3 bg-[#F9FAFB] border border-[#E5E7EB] rounded-xl text-[#111827] placeholder-[#9CA3AF] focus:ring-2 focus:ring-[#00B4D8] focus:border-[#00B4D8] outline-none transition-all font-medium"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {authError && (
+                  <div className="bg-[#FEF2F2] border border-[#FEE2E2] rounded-xl p-3 flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-[#EF4444] mt-0.5 shrink-0" />
+                    <p className="text-sm text-[#EF4444] font-medium">{authError}</p>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={authLoading}
+                  className="w-full px-6 py-4 bg-[#111827] hover:bg-black text-white text-lg font-bold rounded-2xl transition-all shadow-xl hover:shadow-2xl hover:-translate-y-1 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+                >
+                  {authLoading ? (
+                    <div className="flex items-center justify-center gap-3">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                      <span>Bitte warten...</span>
+                    </div>
+                  ) : isSignUp ? (
+                    'Konto erstellen'
+                  ) : (
+                    'Anmelden'
+                  )}
+                </button>
+              </form>
+
+              <div className="mt-6 text-center">
+                <button
+                  onClick={() => { setIsSignUp(!isSignUp); setAuthError(null); }}
+                  className="text-sm font-medium text-[#00B4D8] hover:underline"
+                >
+                  {isSignUp ? 'Bereits ein Konto? Anmelden' : 'Noch kein Konto? Kostenlos registrieren'}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : trialExpired ? (
+          /* Trial Expired Overlay */
+          <div className="text-center max-w-2xl mx-auto mt-12">
+            <div className="bg-white rounded-[32px] border border-[#E5E7EB] p-12 shadow-sm">
+              <div className="w-20 h-20 bg-[#FEF2F2] rounded-[24px] flex items-center justify-center mx-auto mb-8">
+                <AlertTriangle className="w-10 h-10 text-[#EF4444]" />
+              </div>
+              <h2 className="text-3xl font-bold text-[#111827] mb-4">Testversion abgelaufen</h2>
+              <p className="text-lg text-[#6B7280] mb-8 leading-relaxed">
+                Sie haben Ihre <strong>{MAX_TRIAL_LOGINS} kostenlosen Anmeldungen</strong> aufgebraucht. 
+                Aktualisieren Sie auf die Vollversion, um unbegrenzten Zugriff zu erhalten.
+              </p>
+              <div className="space-y-4">
+                <button className="w-full px-8 py-4 bg-[#00B4D8] hover:bg-[#0077B6] text-white text-lg font-bold rounded-2xl transition-all shadow-xl hover:shadow-2xl hover:-translate-y-1 active:translate-y-0">
+                  Vollversion freischalten
+                </button>
+                <button 
+                  onClick={handleSignOut}
+                  className="w-full px-8 py-3 text-[#6B7280] hover:text-[#111827] font-medium text-sm transition-all"
+                >
+                  Abmelden
+                </button>
+              </div>
+            </div>
           </div>
         ) : (
           <div className="space-y-12">
@@ -131,6 +377,12 @@ export default function Home() {
               <div className="mb-10">
                 <h2 className="text-3xl font-bold text-[#111827] mb-3">Willkommen zurück, Herr Doktor.</h2>
                 <p className="text-lg text-[#6B7280]">Your path to medical recognition in Germany, optimized for your schedule.</p>
+                
+                {/* Trial remaining indicator */}
+                <div className="mt-4 inline-flex items-center gap-2 bg-[#FEF3C7] text-[#92400E] text-sm font-bold px-4 py-2 rounded-full border border-[#FDE68A]">
+                  <Shield className="w-4 h-4" />
+                  Verbleibende Anmeldungen: {MAX_TRIAL_LOGINS - loginCount + 1 > 0 ? MAX_TRIAL_LOGINS - loginCount + 1 : 0} von {MAX_TRIAL_LOGINS}
+                </div>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -212,5 +464,17 @@ export default function Home() {
         )}
       </main>
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#F8F9FA' }}>
+        <div style={{ width: 40, height: 40, border: '4px solid #E5E7EB', borderTopColor: '#4F46E5', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+      </div>
+    }>
+      <HomeContent />
+    </Suspense>
   );
 }

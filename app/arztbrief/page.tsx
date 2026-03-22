@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FileText, CheckCircle, AlertCircle, Loader2, ArrowRight, History, Trash2 } from 'lucide-react';
+import AuthGuard from '../components/AuthGuard';
 
 type Mistake = {
   category: string;
@@ -106,6 +107,7 @@ export default function ArztbriefKorrekturPage() {
   const sortedMistakes = Object.entries(mistakeHistory).sort((a, b) => b[1].count - a[1].count);
 
   return (
+    <AuthGuard>
     <div className="min-h-screen bg-[#F8F9FA] text-[#1A1A1A] p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
         <header className="mb-10 flex items-center gap-4">
@@ -285,5 +287,6 @@ export default function ArztbriefKorrekturPage() {
         </div>
       </div>
     </div>
+    </AuthGuard>
   );
 }

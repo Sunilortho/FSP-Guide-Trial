@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Volume2, BookOpen, ChevronRight, X } from 'lucide-react';
 import { MEDICAL_TERMS, TERM_CATEGORIES, TermCategory, MedicalTerm } from '@/lib/medicalTerms';
+import AuthGuard from '../components/AuthGuard';
 
 export default function BegriffePage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -34,6 +35,7 @@ export default function BegriffePage() {
   };
 
   return (
+    <AuthGuard>
     <div className="min-h-screen bg-[#F8F9FA] text-[#1A1A1A]">
       {/* Header */}
       <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-[#E5E7EB] p-6 shadow-sm">
@@ -165,5 +167,6 @@ export default function BegriffePage() {
         )}
       </main>
     </div>
+    </AuthGuard>
   );
 }
