@@ -28,8 +28,9 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         if (userSnap.exists()) {
           const data = userSnap.data();
           const loginCount = data.loginCount || 0;
+          const isPaid = data.isPaid === true;
           
-          if (loginCount > MAX_TRIAL_LOGINS) {
+          if (!isPaid && loginCount > MAX_TRIAL_LOGINS) {
             // Trial expired — redirect to home (the homepage will show the expired message)
             router.replace('/?expired=true');
             return;

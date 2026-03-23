@@ -4,28 +4,6 @@ service cloud.firestore {
   match /databases/{database}/documents {
     
     // ===============================================================
-    // Assumed Data Model
-    // ===============================================================
-    //
-    // Collection: users
-    // Document ID: userId
-    // Fields:
-    //   - uid: string (required, immutable) - The user's unique ID
-    //   - email: string (required, email format) - The user's email address
-    //   - displayName: string (optional) - The user's display name
-    //   - createdAt: timestamp (required, immutable) - When the user profile was created
-    //
-    // Collection: practiceSessions
-    // Document ID: sessionId
-    // Fields:
-    //   - userId: string (required, immutable) - The ID of the user who created the session
-    //   - scenarioId: string (required) - The ID of the patient scenario
-    //   - score: number (optional) - The score achieved in the session
-    //   - createdAt: timestamp (required, immutable) - When the session was created
-    //
-    // ===============================================================
-
-    // ===============================================================
     // Helper Functions
     // ===============================================================
     
@@ -70,11 +48,15 @@ service cloud.firestore {
     // ===============================================================
     
     function isValidUser(data) {
-      return hasOnlyAllowedFields(['uid', 'email', 'displayName', 'createdAt', 'loginCount']) &&
+      return hasOnlyAllowedFields(['uid', 'email', 'displayName', 'createdAt', 'loginCount', 'isPaid', 'updatedAt', 'avatar_url', 'rank', 'points']) &&
              data.uid is string && data.uid.size() > 0 && data.uid.size() < 100 &&
              data.email is string && isValidEmail(data.email) && data.email.size() < 100 &&
              (!('displayName' in data) || (data.displayName is string && data.displayName.size() < 100)) &&
-             (!('loginCount' in data) || (data.loginCount is number && data.loginCount >= 0 && data.loginCount <= 10)) &&
+             (!('loginCount' in data) || (data.loginCount is number && data.loginCount >= 0 && data.loginCount <= 1000)) &&
+             (!('isPaid' in data) || data.isPaid is bool) &&
+             (!('avatar_url' in data) || (data.avatar_url is string && data.avatar_url.size() < 500)) &&
+             (!('rank' in data) || (data.rank is string && data.rank in ['Initiate', 'Page', 'Squire', 'Knight', 'King'])) &&
+             (!('points' in data) || (data.points is number && data.points >= 0 && data.points <= 100000)) &&
              data.createdAt is timestamp;
     }
     

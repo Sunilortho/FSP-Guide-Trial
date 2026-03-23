@@ -10,9 +10,21 @@ import {
   User 
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, updateDoc, increment, collection, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
-import { Stethoscope, User as UserIcon, LogOut, BookOpen, Play, FileText, Activity, Mail, Lock, AlertTriangle, Shield } from 'lucide-react';
+import { Stethoscope, User as UserIcon, LogOut, BookOpen, Play, FileText, Activity, Mail, Lock, AlertTriangle, Shield, Star, MessageSquare } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
+import AvatarUpload from '@/components/profile/AvatarUpload';
+import RankBadge, { RankType } from '@/components/profile/RankBadge';
+import ChatWindow from '@/components/chat/ChatWindow';
+
+const RANK_THRESHOLDS: { [key: number]: RankType } = {
+  0: 'Initiate',
+  50: 'Page',
+  200: 'Squire',
+  500: 'Knight',
+  1000: 'King'
+};
 
 const MAX_TRIAL_LOGINS = 2;
 
@@ -22,6 +34,8 @@ function HomeContent() {
   const [sessions, setSessions] = useState<any[]>([]);
   const [loginCount, setLoginCount] = useState(0);
   const [trialExpired, setTrialExpired] = useState(false);
+  const [isPaid, setIsPaid] = useState(false);
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
 
   // Auth form state
   const [isSignUp, setIsSignUp] = useState(false);
@@ -30,12 +44,22 @@ function HomeContent() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [authError, setAuthError] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
+  const [profile, setProfile] = useState<{
+    avatar_url?: string;
+    rank: RankType;
+    points: number;
+    displayName: string;
+  }>({ rank: 'Initiate', points: 0, displayName: 'Doctor' });
+  const [showChat, setShowChat] = useState(false);
 
   const searchParams = useSearchParams();
 
   useEffect(() => {
     if (searchParams.get('expired') === 'true') {
       setTrialExpired(true);
+    }
+    if (searchParams.get('success') === 'true') {
+      setPaymentSuccess(true);
     }
   }, [searchParams]);
 
@@ -50,9 +74,18 @@ function HomeContent() {
         if (userSnap.exists()) {
           const data = userSnap.data();
           const count = data.loginCount || 0;
+          const paid = data.isPaid === true;
           setLoginCount(count);
+          setIsPaid(paid);
           
-          if (count > MAX_TRIAL_LOGINS) {
+          setProfile({
+            avatar_url: data.avatar_url,
+            rank: (data.rank as RankType) || 'Initiate',
+            points: data.points || 0,
+            displayName: data.displayName || currentUser.email?.split('@')[0] || 'Doctor',
+          });
+          
+          if (!paid && count > MAX_TRIAL_LOGINS) {
             setTrialExpired(true);
           }
         }
@@ -65,12 +98,32 @@ function HomeContent() {
       } else {
         setSessions([]);
         setLoginCount(0);
+        setIsPaid(false);
       }
       setLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
+
+  // Rank Progression Logic
+  useEffect(() => {
+    if (!user) return;
+
+    let newRank: RankType = 'Initiate';
+    const points = profile.points;
+
+    if (points >= 1000) newRank = 'King';
+    else if (points >= 500) newRank = 'Knight';
+    else if (points >= 200) newRank = 'Squire';
+    else if (points >= 50) newRank = 'Page';
+
+    if (newRank !== profile.rank) {
+      setProfile(prev => ({ ...prev, rank: newRank }));
+      const userRef = doc(db, 'users', user.uid);
+      updateDoc(userRef, { rank: newRank }).catch(console.error);
+    }
+  }, [profile.points, user]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,18 +141,22 @@ function HomeContent() {
       if (userSnap.exists()) {
         const data = userSnap.data();
         const currentCount = data.loginCount || 0;
+        const paid = data.isPaid === true;
         
-        if (currentCount >= MAX_TRIAL_LOGINS) {
+        if (!paid && currentCount >= MAX_TRIAL_LOGINS) {
           setTrialExpired(true);
           setLoginCount(currentCount);
           setAuthLoading(false);
           return;
         }
         
-        // Increment login count
-        await updateDoc(userRef, {
-          loginCount: increment(1),
-        });
+        setIsPaid(paid);
+        if (!paid) {
+          // Increment login count
+          await updateDoc(userRef, {
+            loginCount: increment(1),
+          });
+        }
         setLoginCount(currentCount + 1);
       }
 
@@ -203,25 +260,40 @@ function HomeContent() {
         
         {user ? (
           <div className="flex items-center gap-6">
-            {/* Trial Badge */}
-            {!trialExpired && (
+            {/* Account Status Badge */}
+            {!trialExpired && !isPaid && (
               <div className="flex items-center gap-2 bg-[#FEF3C7] text-[#92400E] text-xs font-bold px-3 py-1.5 rounded-full border border-[#FDE68A]">
                 <Shield className="w-3.5 h-3.5" />
                 Trial: {MAX_TRIAL_LOGINS - loginCount + 1 > 0 ? `${MAX_TRIAL_LOGINS - loginCount + 1} of ${MAX_TRIAL_LOGINS} remaining` : 'Expired'}
               </div>
             )}
-            <div className="flex items-center gap-2 text-sm font-medium text-[#4B5563]">
-              <div className="w-8 h-8 rounded-full bg-[#F3F4F6] flex items-center justify-center border border-[#E5E7EB]">
-                <UserIcon className="w-4 h-4 text-[#6B7280]" />
+            {isPaid && (
+              <div className="flex items-center gap-2 bg-[#D1FAE5] text-[#065F46] text-xs font-bold px-3 py-1.5 rounded-full border border-[#A7F3D0]">
+                <Star className="w-3.5 h-3.5" />
+                Premium
               </div>
-              {user.email}
+            )}
+            <div className="flex items-center gap-3 pr-2 border-r border-[#E5E7EB]">
+               <RankBadge rank={profile.rank} showIconOnly />
+               <div className="flex flex-col">
+                  <span className="text-xs font-bold text-[#111827]">{profile.displayName}</span>
+                  <span className="text-[10px] text-[#6B7280] font-medium">{profile.points} Points</span>
+               </div>
+            </div>
+            <div className="flex items-center gap-2 text-sm font-medium text-[#4B5563]">
+              <div className="relative w-9 h-9 rounded-full overflow-hidden border border-[#E5E7EB] bg-[#F3F4F6]">
+                {profile.avatar_url ? (
+                  <Image src={profile.avatar_url} alt="Profile" fill className="object-cover" />
+                ) : (
+                  <UserIcon className="w-5 h-5 text-[#6B7280] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                )}
+              </div>
             </div>
             <button 
               onClick={handleSignOut}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-[#EF4444] hover:bg-[#FEF2F2] rounded-xl transition-all"
+              className="flex items-center gap-2 px-3 py-2 text-sm font-semibold text-[#EF4444] hover:bg-[#FEF2F2] rounded-xl transition-all"
             >
               <LogOut className="w-4 h-4" />
-              Sign Out
             </button>
           </div>
         ) : null}
@@ -359,9 +431,9 @@ function HomeContent() {
                 Aktualisieren Sie auf die Vollversion, um unbegrenzten Zugriff zu erhalten.
               </p>
               <div className="space-y-4">
-                <button className="w-full px-8 py-4 bg-[#00B4D8] hover:bg-[#0077B6] text-white text-lg font-bold rounded-2xl transition-all shadow-xl hover:shadow-2xl hover:-translate-y-1 active:translate-y-0">
+                <Link href="/checkout" className="block w-full text-center px-8 py-4 bg-[#00B4D8] hover:bg-[#0077B6] text-white text-lg font-bold rounded-2xl transition-all shadow-xl hover:shadow-2xl hover:-translate-y-1 active:translate-y-0">
                   Vollversion freischalten
-                </button>
+                </Link>
                 <button 
                   onClick={handleSignOut}
                   className="w-full px-8 py-3 text-[#6B7280] hover:text-[#111827] font-medium text-sm transition-all"
@@ -374,15 +446,32 @@ function HomeContent() {
         ) : (
           <div className="space-y-12">
             <div className="bg-white rounded-[32px] border border-[#E5E7EB] p-10 shadow-sm">
+              {paymentSuccess && (
+                <div className="mb-6 bg-[#D1FAE5] border border-[#A7F3D0] rounded-2xl p-4 text-left flex items-start gap-3">
+                  <Star className="w-5 h-5 text-[#059669] mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-sm font-bold text-[#065F46]">Zahlung erfolgreich!</p>
+                    <p className="text-xs text-[#047857] mt-1">Ihr Konto wurde erfolgreich auf die Vollversion erweitert.</p>
+                  </div>
+                </div>
+              )}
+
               <div className="mb-10">
                 <h2 className="text-3xl font-bold text-[#111827] mb-3">Willkommen zurück, Herr Doktor.</h2>
                 <p className="text-lg text-[#6B7280]">Your path to medical recognition in Germany, optimized for your schedule.</p>
                 
-                {/* Trial remaining indicator */}
-                <div className="mt-4 inline-flex items-center gap-2 bg-[#FEF3C7] text-[#92400E] text-sm font-bold px-4 py-2 rounded-full border border-[#FDE68A]">
-                  <Shield className="w-4 h-4" />
-                  Verbleibende Anmeldungen: {MAX_TRIAL_LOGINS - loginCount + 1 > 0 ? MAX_TRIAL_LOGINS - loginCount + 1 : 0} von {MAX_TRIAL_LOGINS}
-                </div>
+                {/* Account Status indicator */}
+                {!isPaid ? (
+                  <div className="mt-4 inline-flex items-center gap-2 bg-[#FEF3C7] text-[#92400E] text-sm font-bold px-4 py-2 rounded-full border border-[#FDE68A]">
+                    <Shield className="w-4 h-4" />
+                    Verbleibende Anmeldungen: {MAX_TRIAL_LOGINS - loginCount + 1 > 0 ? MAX_TRIAL_LOGINS - loginCount + 1 : 0} von {MAX_TRIAL_LOGINS}
+                  </div>
+                ) : (
+                  <div className="mt-4 inline-flex items-center gap-2 bg-[#D1FAE5] text-[#065F46] text-sm font-bold px-4 py-2 rounded-full border border-[#A7F3D0]">
+                    <Star className="w-4 h-4" />
+                    Vollversion Aktiviert. Viel Erfolg!
+                  </div>
+                )}
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -417,6 +506,80 @@ function HomeContent() {
                   <h3 className="text-xl font-bold text-[#111827] mb-2">Arztbrief</h3>
                   <p className="text-[#6B7280] text-sm leading-relaxed">AI-powered correction for your medical letters.</p>
                 </Link>
+              </div>
+
+              {/* Profile & Settings Section */}
+              <div className="mt-12 pt-12 border-t border-[#E5E7EB] grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-1 space-y-6">
+                  <h3 className="text-xl font-bold text-[#111827]">Account Profil</h3>
+                  <div className="bg-[#F9FAFB] border border-[#E5E7EB] rounded-[32px] p-8 flex flex-col items-center">
+                    <div className="relative">
+                      <AvatarUpload
+                        userId={user.uid}
+                        displayName={profile.displayName || user.displayName || 'User'}
+                        currentAvatarUrl={profile.avatar_url}
+                        onUploadSuccess={(url) => {
+                          setProfile(prev => ({ ...prev, avatar_url: url, points: prev.points + 20 }));
+                          updateDoc(doc(db, 'users', user.uid), {
+                            avatar_url: url,
+                            points: increment(20)
+                          });
+                        }}
+                      />
+                      <div className="absolute -top-2 -right-2 transform scale-125 z-10">
+                        <RankBadge rank={profile.rank} showIconOnly={true} />
+                      </div>
+                    </div>
+                    <div className="mt-6 text-center">
+                      <p className="font-bold text-lg text-[#111827]">{profile.displayName}</p>
+                      <p className="text-sm text-[#6B7280] mb-4">{user.email}</p>
+                      <RankBadge rank={profile.rank} />
+                      <div className="mt-4 w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                        <div 
+                          className="bg-[#00B4D8] h-full transition-all duration-500" 
+                          style={{ width: `${Math.min((profile.points / 1000) * 100, 100)}%` }} 
+                        />
+                      </div>
+                      <p className="text-[10px] text-[#9CA3AF] mt-2 font-bold uppercase tracking-wider">{profile.points} / 1000 XP TO KING</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="lg:col-span-2 space-y-6">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xl font-bold text-[#111827]">Station Chat</h3>
+                    <button 
+                      onClick={() => setShowChat(!showChat)}
+                      className="text-sm font-bold text-[#00B4D8] hover:underline flex items-center gap-2"
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                      {showChat ? 'Chat ausblenden' : 'Chat anzeigen'}
+                    </button>
+                  </div>
+                  
+                  {showChat ? (
+                    <ChatWindow 
+              userId={user.uid} 
+              conversationId="global-case-discussion" 
+              userRank={profile.rank}
+              userAvatarUrl={profile.avatar_url}
+              userName="FSP Case Discussion"
+            />
+                  ) : (
+                    <div className="h-[500px] bg-[#F9FAFB] rounded-[32px] border border-dashed border-[#D1D5DB] flex flex-col items-center justify-center text-center p-8">
+                      <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mb-6 shadow-sm border border-[#E5E7EB]">
+                        <MessageSquare className="w-8 h-8 text-[#00B4D8]" />
+                      </div>
+                      <p className="text-[#6B7280] font-medium mb-2">Connect with other resident doctors.</p>
+                      <button 
+                        onClick={() => setShowChat(true)}
+                        className="px-6 py-2 bg-[#111827] text-white font-bold rounded-xl hover:bg-black transition-all shadow-md"
+                      >
+                        Open Chat
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
