@@ -7,6 +7,7 @@ import {
   createUserWithEmailAndPassword, 
   signOut, 
   onAuthStateChanged, 
+  sendPasswordResetEmail,
   User 
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, updateDoc, increment, collection, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
@@ -188,6 +189,26 @@ function HomeContent() {
     }
   };
 
+  const handleResetPassword = async () => {
+    if (!email) {
+      setAuthError('Bitte geben Sie Ihre E-Mail-Adresse ein, um das Passwort zurückzusetzen.');
+      return;
+    }
+    setAuthLoading(true);
+    setAuthError(null);
+    try {
+      await sendPasswordResetEmail(auth, email);
+      alert('Eine E-Mail zum Zurücksetzen des Passworts wurde gesendet!');
+    } catch (error: any) {
+      if (error.code === 'auth/user-not-found') {
+        setAuthError('Benutzer nicht gefunden. Bitte registrieren Sie sich.');
+      } else {
+        setAuthError(error.message || 'Fehler beim Senden der E-Mail.');
+      }
+    }
+    setAuthLoading(false);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]">
@@ -341,13 +362,23 @@ function HomeContent() {
                 </button>
               </form>
 
-              <div className="mt-6 text-center">
-                <button
-                  onClick={() => { setIsSignUp(!isSignUp); setAuthError(null); }}
-                  className="text-sm font-medium text-[#00B4D8] hover:underline"
-                >
-                  {isSignUp ? 'Bereits ein Konto? Anmelden' : 'Noch kein Konto? Registrieren'}
-                </button>
+              <div className="mt-6 text-center space-y-4">
+                {!isSignUp && (
+                  <div>
+                    <button type="button" onClick={handleResetPassword} disabled={authLoading}
+                      className="text-sm font-medium text-[#6B7280] hover:text-[#111827] transition-colors">
+                      Passwort vergessen?
+                    </button>
+                  </div>
+                )}
+                <div>
+                  <button
+                    onClick={() => { setIsSignUp(!isSignUp); setAuthError(null); }}
+                    className="text-sm font-medium text-[#00B4D8] hover:underline"
+                  >
+                    {isSignUp ? 'Bereits ein Konto? Anmelden' : 'Noch kein Konto? Registrieren'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
