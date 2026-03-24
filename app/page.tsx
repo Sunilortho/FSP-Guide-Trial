@@ -48,6 +48,7 @@ function HomeContent() {
   }>({ rank: 'Initiate', points: 0, displayName: 'Doctor' });
   const [showChat, setShowChat] = useState(false);
   const [streak, setStreak] = useState(0);
+  const [showChatTooltip, setShowChatTooltip] = useState(false);
 
   const searchParams = useSearchParams();
 
@@ -89,6 +90,12 @@ function HomeContent() {
           }
           setStreak(newStreak);
           updateDoc(userRef, { streak: newStreak, lastLoginDate: today }).catch(console.error);
+
+          // Show chat tooltip on first login
+          const hasSeenTooltip = localStorage.getItem('fsp_chat_tooltip_seen');
+          if (!hasSeenTooltip) {
+            setTimeout(() => setShowChatTooltip(true), 2000);
+          }
         }
         
         // Fetch practice sessions
@@ -492,15 +499,35 @@ function HomeContent() {
                 </div>
 
                 <div className="lg:col-span-2 space-y-6">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between relative">
                     <h3 className="text-xl font-bold text-[#111827]">Station Chat</h3>
-                    <button 
-                      onClick={() => setShowChat(!showChat)}
-                      className="text-sm font-bold text-[#00B4D8] hover:underline flex items-center gap-2"
-                    >
-                      <MessageSquare className="w-4 h-4" />
-                      {showChat ? 'Chat ausblenden' : 'Chat anzeigen'}
-                    </button>
+                    <div className="relative">
+                      {showChatTooltip && (
+                        <div className="absolute bottom-full right-0 mb-3 w-64 z-50">
+                          <div className="bg-[#111827] text-white text-xs rounded-2xl px-4 py-3 shadow-xl relative">
+                            <div className="absolute -bottom-2 right-5 w-4 h-4 bg-[#111827] rotate-45" />
+                            <p className="font-bold mb-1">🤖 Probiere es aus!</p>
+                            <p className="text-white/70">Frag mich: <span className="text-[#00B4D8] font-semibold">"Erkläre Hypertonie auf B2-Niveau"</span></p>
+                          </div>
+                        </div>
+                      )}
+                      <button
+                        onClick={() => {
+                          setShowChat(!showChat);
+                          if (showChatTooltip) {
+                            setShowChatTooltip(false);
+                            localStorage.setItem('fsp_chat_tooltip_seen', '1');
+                          }
+                        }}
+                        className="relative text-sm font-bold text-[#00B4D8] hover:underline flex items-center gap-2"
+                      >
+                        {showChatTooltip && (
+                          <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full animate-ping" />
+                        )}
+                        <MessageSquare className="w-4 h-4" />
+                        {showChat ? 'Chat ausblenden' : 'Chat anzeigen'}
+                      </button>
+                    </div>
                   </div>
                   
                   {showChat ? (
