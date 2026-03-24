@@ -8,7 +8,7 @@ const __dirname = path.dirname(__filename);
 
 export default defineConfig([
   {
-    ignores: ["repo_content/**"],
+    ignores: ["repo_content/**", ".vercel/**", ".next/**"],
   },
   {
     extends: [...next],
