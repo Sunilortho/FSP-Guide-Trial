@@ -1,4 +1,6 @@
 import * as admin from 'firebase-admin';
+import { getFirestore } from 'firebase-admin/firestore';
+import firebaseConfig from '../firebase-applet-config.json';
 
 // Initialize the Firebase Admin SDK
 // This requires a service account key to be added in your environment variables.
@@ -23,6 +25,6 @@ if (!admin.apps.length) {
   }
 }
 
-export const adminDb = admin.apps.length ? admin.firestore() : null;
+export const adminDb = admin.apps.length ? getFirestore(admin.app(), firebaseConfig.firestoreDatabaseId) : null;
 export const adminAuth = admin.apps.length ? admin.auth() : null;
 export const adminStorage = admin.apps.length ? admin.storage() : null;
