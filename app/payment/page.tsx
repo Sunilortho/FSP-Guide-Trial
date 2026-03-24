@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
@@ -30,8 +30,7 @@ export default function PaymentPage() {
       setUser(currentUser);
       if (currentUser) {
         // Check if user is already paid in Firestore
-        const { getFirestore, doc, getDoc } = await import('firebase/firestore');
-        const db = getFirestore();
+        const { doc, getDoc } = await import('firebase/firestore');
         const userRef = doc(db, 'users', currentUser.uid);
         const userSnap = await getDoc(userRef);
         
@@ -67,10 +66,9 @@ export default function PaymentPage() {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         
         // Save extra user details to Firestore
-        const { getFirestore, doc, setDoc, serverTimestamp } = await import('firebase/firestore');
+        const { doc, setDoc, serverTimestamp } = await import('firebase/firestore');
         const { updateProfile } = await import('firebase/auth');
         
-        const db = getFirestore();
         await updateProfile(userCredential.user, { displayName: name });
         await setDoc(doc(db, 'users', userCredential.user.uid), {
           uid: userCredential.user.uid,
