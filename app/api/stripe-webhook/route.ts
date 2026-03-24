@@ -30,39 +30,67 @@ export async function POST(req: NextRequest) {
         );
         console.log(`✅ User ${userId} marked as paid.`);
 
-        // -------------------------------------------------------------
-        // Send a Welcome Email via Resend
-        // -------------------------------------------------------------
         const customerEmail = session.customer_details?.email || session.metadata?.email;
         if (customerEmail && process.env.RESEND_API_KEY) {
+
+          // ─── DAY 0: Welcome Email ───────────────────────────────────────
           try {
             await resend.emails.send({
-              from: 'FSP Guide <onboarding@resend.dev>', // Free tier sandbox address
+              from: 'FSP Guide <onboarding@resend.dev>',
               to: customerEmail,
               subject: 'Willkommen zum FSP Guide – Zugang freigeschaltet! 🎉',
               html: `
-                <div style="font-family: sans-serif; color: #111827; line-height: 1.6; max-width: 600px; margin: 0 auto; padding: 20px;">
-                  <h2 style="color: #00B4D8; text-align: center;">Willkommen beim FSP Guide!</h2>
-                  <p>Vielen Dank für Ihre Registrierung und Zahlung. Ihr lebenslanger Vollzugang ist nun offiziell freigeschaltet.</p>
-                  <p>Sie können ab sofort alle KI-gestützten Premium-Funktionen nutzen:</p>
-                  <ul>
-                    <li>✓ <strong>Emotionale KI (FSP Simulator):</strong> Trainieren Sie Anamnesegespräche.</li>
-                    <li>✓ <strong>Oberarzt-Rollenspiele:</strong> Trainieren Sie die Visite unter Druck.</li>
-                    <li>✓ <strong>Arztbrief-Korrektur:</strong> Erhalten Sie blitzschnelles, präzises Feedback.</li>
-                  </ul>
-                  <p style="text-align: center; margin: 30px 0;">
-                    <a href="https://fsp-guide-for-busy-professionals-fawn.vercel.app/" style="background-color: #00B4D8; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">Plattform Starten</a>
+                <div style="font-family:sans-serif;color:#111827;line-height:1.6;max-width:600px;margin:0 auto;padding:20px;">
+                  <h2 style="color:#00B4D8;text-align:center;">Willkommen beim FSP Guide!</h2>
+                  <p>Vielen Dank für deine Zahlung. Dein lebenslanger Vollzugang ist jetzt offiziell freigeschaltet! 🚀</p>
+                  <p><strong>Dein 3-Schritte Schnellstart:</strong></p>
+                  <ol style="padding-left:20px;">
+                    <li style="margin-bottom:8px;"><strong>Schritt 1:</strong> Lade ein Profilbild hoch (+20 XP)</li>
+                    <li style="margin-bottom:8px;"><strong>Schritt 2:</strong> Starte deine erste FSP-Simulation mit einem KI-Patienten</li>
+                    <li style="margin-bottom:8px;"><strong>Schritt 3:</strong> Lerne 10 medizinische Begriffe mit Audio-Aussprache</li>
+                  </ol>
+                  <p style="text-align:center;margin:30px 0;">
+                    <a href="https://fsp-guide-for-busy-professionals-fawn.vercel.app/" style="background-color:#00B4D8;color:#ffffff;padding:12px 28px;text-decoration:none;border-radius:8px;font-weight:bold;">Jetzt loslegen →</a>
                   </p>
-                  <p>Loggen Sie sich ein und öffnen Sie den schwebenden KI-Assistenten unten rechts, um direkt loszulegen.</p>
-                  <br/>
-                  <p>Viel Erfolg bei Ihrer Vorbereitung!</p>
-                  <p><em>Ihr FSP Guide Team</em></p>
+                  <p style="color:#6B7280;font-size:13px;">Tipp: Öffne den KI-Assistenten unten rechts für sofortige Lernhilfe.</p>
+                  <p>Viel Erfolg! 💪<br/><em>Dein FSP Guide Team</em></p>
                 </div>
               `
             });
-            console.log(`📧 Welcome email successfully sent to ${customerEmail}`);
-          } catch (emailError) {
-            console.error('Failed to send welcome email via Resend:', emailError);
+            console.log(`📧 Welcome email sent to ${customerEmail}`);
+          } catch (e) {
+            console.error('Welcome email failed:', e);
+          }
+
+          // ─── DAY 3: Follow-up drip ──────────────────────────────────────
+          try {
+            const day3 = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
+            await resend.emails.send({
+              from: 'FSP Guide <onboarding@resend.dev>',
+              to: customerEmail,
+              subject: 'Tag 3 – Wie läuft deine Vorbereitung? 🔥',
+              scheduledAt: day3,
+              html: `
+                <div style="font-family:sans-serif;color:#111827;line-height:1.6;max-width:600px;margin:0 auto;padding:20px;">
+                  <h2 style="color:#00B4D8;">Tag 3 deiner FSP-Vorbereitung</h2>
+                  <p>Hallo!</p>
+                  <p>Du hast vor 3 Tagen deinen Vollzugang freigeschaltet. Wie läuft es?</p>
+                  <p>Falls du noch nicht gestartet bist — kein Problem! Hier sind 2 schnelle Dinge, die du heute in 15 Minuten erledigen kannst:</p>
+                  <ul style="padding-left:20px;">
+                    <li style="margin-bottom:8px;">✅ <strong>1 FSP-Simulation</strong> mit einem KI-Patienten durchführen</li>
+                    <li style="margin-bottom:8px;">✅ <strong>10 Begriffe</strong> mit Audio durchgehen</li>
+                  </ul>
+                  <p>Konsistenz schlägt Intensität — 15 Minuten täglich reichen, um die FSP zu bestehen.</p>
+                  <p style="text-align:center;margin:30px 0;">
+                    <a href="https://fsp-guide-for-busy-professionals-fawn.vercel.app/simulator" style="background-color:#111827;color:#ffffff;padding:12px 28px;text-decoration:none;border-radius:8px;font-weight:bold;">Simulation starten →</a>
+                  </p>
+                  <p>Du schaffst das! 🏆<br/><em>Dein FSP Guide Team</em></p>
+                </div>
+              `
+            });
+            console.log(`📧 Day-3 drip scheduled for ${customerEmail}`);
+          } catch (e) {
+            console.error('Day-3 drip email failed:', e);
           }
         }
 

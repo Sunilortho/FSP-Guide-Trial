@@ -11,7 +11,7 @@ import {
   User 
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, updateDoc, increment, collection, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
-import { Stethoscope, User as UserIcon, LogOut, BookOpen, Play, FileText, Activity, Mail, Lock, AlertTriangle, Shield, Star, MessageSquare } from 'lucide-react';
+import { Stethoscope, User as UserIcon, LogOut, BookOpen, Play, FileText, Activity, Mail, Lock, AlertTriangle, Shield, Star, MessageSquare, Flame } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
@@ -47,6 +47,7 @@ function HomeContent() {
     displayName: string;
   }>({ rank: 'Initiate', points: 0, displayName: 'Doctor' });
   const [showChat, setShowChat] = useState(false);
+  const [streak, setStreak] = useState(0);
 
   const searchParams = useSearchParams();
 
@@ -73,6 +74,21 @@ function HomeContent() {
             points: data.points || 0,
             displayName: data.displayName || currentUser.email?.split('@')[0] || 'Doctor',
           });
+
+          // --- Daily Streak Logic ---
+          const today = new Date().toISOString().split('T')[0];
+          const lastLogin = data.lastLoginDate || '';
+          const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+          let newStreak = data.streak || 0;
+          if (lastLogin === today) {
+            // Already logged in today, keep streak
+          } else if (lastLogin === yesterday) {
+            newStreak = newStreak + 1;
+          } else if (lastLogin !== today) {
+            newStreak = 1; // streak broken or first time
+          }
+          setStreak(newStreak);
+          updateDoc(userRef, { streak: newStreak, lastLoginDate: today }).catch(console.error);
         }
         
         // Fetch practice sessions
@@ -121,12 +137,14 @@ function HomeContent() {
       setPassword('');
     } catch (error: any) {
       console.error('Error signing in:', error);
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') {
         setAuthError('Ungültige E-Mail oder Passwort. Bitte versuchen Sie es erneut.');
-      } else if (error.code === 'auth/wrong-password') {
-        setAuthError('Falsches Passwort. Bitte versuchen Sie es erneut.');
       } else if (error.code === 'auth/too-many-requests') {
-        setAuthError('Zu viele Anmeldeversuche. Bitte versuchen Sie es später erneut.');
+        setAuthError('Zu viele Anmeldeversuche. Bitte versuchen Sie es in ein paar Minuten erneut.');
+      } else if (error.code === 'auth/invalid-email') {
+        setAuthError('Ungültige E-Mail-Adresse. Bitte überprüfen Sie Ihre Eingabe.');
+      } else if (error.code === 'auth/network-request-failed') {
+        setAuthError('Netzwerkfehler. Bitte überprüfen Sie Ihre Internetverbindung.');
       } else {
         setAuthError('Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.');
       }
@@ -238,6 +256,12 @@ function HomeContent() {
               <Star className="w-3.5 h-3.5" />
               Premium
             </div>
+            {streak > 0 && (
+              <div className="flex items-center gap-1.5 bg-orange-50 text-orange-700 text-xs font-bold px-3 py-1.5 rounded-full border border-orange-200">
+                <Flame className="w-3.5 h-3.5 text-orange-500" />
+                {streak} {streak === 1 ? 'Tag' : 'Tage'} Streak
+              </div>
+            )}
             <div className="flex items-center gap-3 pr-2 border-r border-[#E5E7EB]">
                <RankBadge rank={profile.rank} showIconOnly />
                <div className="flex flex-col">
