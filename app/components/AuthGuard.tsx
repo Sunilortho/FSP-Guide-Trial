@@ -2,47 +2,21 @@
 
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase';
+import { auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
-
-const MAX_TRIAL_LOGINS = 2;
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<'loading' | 'authorized' | 'unauthorized'>('loading');
   const router = useRouter();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user: User | null) => {
+    const unsubscribe = onAuthStateChanged(auth, (user: User | null) => {
       if (!user) {
-        // Not logged in — redirect to home
+        // Not logged in — redirect to home (which will route to /payment if necessary)
         router.replace('/');
         return;
       }
-
-      // Check trial status
-      try {
-        const userRef = doc(db, 'users', user.uid);
-        const userSnap = await getDoc(userRef);
-        
-        if (userSnap.exists()) {
-          const data = userSnap.data();
-          const loginCount = data.loginCount || 0;
-          const isPaid = data.isPaid === true;
-          
-          if (!isPaid && loginCount > MAX_TRIAL_LOGINS) {
-            // Trial expired — redirect to home (the homepage will show the expired message)
-            router.replace('/?expired=true');
-            return;
-          }
-        }
-
-        setStatus('authorized');
-      } catch (error) {
-        console.error('Error checking trial status:', error);
-        // On error, still allow access rather than blocking
-        setStatus('authorized');
-      }
+      setStatus('authorized');
     });
 
     return () => unsubscribe();

@@ -48,7 +48,7 @@ service cloud.firestore {
     // ===============================================================
     
     function isValidUser(data) {
-      return hasOnlyAllowedFields(['uid', 'email', 'displayName', 'createdAt', 'loginCount', 'isPaid', 'updatedAt', 'avatar_url', 'rank', 'points']) &&
+      return hasOnlyAllowedFields(['uid', 'email', 'displayName', 'createdAt', 'loginCount', 'isPaid', 'updatedAt', 'avatar_url', 'rank', 'points', 'hasPaid', 'paidAt', 'address']) &&
              data.uid is string && data.uid.size() > 0 && data.uid.size() < 100 &&
              data.email is string && isValidEmail(data.email) && data.email.size() < 100 &&
              (!('displayName' in data) || (data.displayName is string && data.displayName.size() < 100)) &&
@@ -57,6 +57,9 @@ service cloud.firestore {
              (!('avatar_url' in data) || (data.avatar_url is string && data.avatar_url.size() < 500)) &&
              (!('rank' in data) || (data.rank is string && data.rank in ['Initiate', 'Page', 'Squire', 'Knight', 'King'])) &&
              (!('points' in data) || (data.points is number && data.points >= 0 && data.points <= 100000)) &&
+             (!('hasPaid' in data) || data.hasPaid is bool) &&
+             (!('paidAt' in data) || (data.paidAt is string && data.paidAt.size() < 100)) &&
+             (!('address' in data) || (data.address is string && data.address.size() < 500)) &&
              data.createdAt is timestamp;
     }
     

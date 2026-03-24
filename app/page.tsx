@@ -26,15 +26,10 @@ const RANK_THRESHOLDS: { [key: number]: RankType } = {
   1000: 'King'
 };
 
-const MAX_TRIAL_LOGINS = 2;
-
 function HomeContent() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [sessions, setSessions] = useState<any[]>([]);
-  const [loginCount, setLoginCount] = useState(0);
-  const [trialExpired, setTrialExpired] = useState(false);
-  const [isPaid, setIsPaid] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
 
   // Auth form state
@@ -55,9 +50,6 @@ function HomeContent() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    if (searchParams.get('expired') === 'true') {
-      setTrialExpired(true);
-    }
     if (searchParams.get('success') === 'true') {
       setPaymentSuccess(true);
     }
@@ -73,10 +65,6 @@ function HomeContent() {
         
         if (userSnap.exists()) {
           const data = userSnap.data();
-          const count = data.loginCount || 0;
-          const paid = data.isPaid === true;
-          setLoginCount(count);
-          setIsPaid(paid);
           
           setProfile({
             avatar_url: data.avatar_url,
@@ -84,10 +72,6 @@ function HomeContent() {
             points: data.points || 0,
             displayName: data.displayName || currentUser.email?.split('@')[0] || 'Doctor',
           });
-          
-          if (!paid && count > MAX_TRIAL_LOGINS) {
-            setTrialExpired(true);
-          }
         }
         
         // Fetch practice sessions
@@ -97,8 +81,6 @@ function HomeContent() {
         setSessions(userSessions);
       } else {
         setSessions([]);
-        setLoginCount(0);
-        setIsPaid(false);
       }
       setLoading(false);
     });
@@ -132,34 +114,7 @@ function HomeContent() {
 
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const currentUser = userCredential.user;
-
-      // Check and increment login count
-      const userRef = doc(db, 'users', currentUser.uid);
-      const userSnap = await getDoc(userRef);
       
-      if (userSnap.exists()) {
-        const data = userSnap.data();
-        const currentCount = data.loginCount || 0;
-        const paid = data.isPaid === true;
-        
-        if (!paid && currentCount >= MAX_TRIAL_LOGINS) {
-          setTrialExpired(true);
-          setLoginCount(currentCount);
-          setAuthLoading(false);
-          return;
-        }
-        
-        setIsPaid(paid);
-        if (!paid) {
-          // Increment login count
-          await updateDoc(userRef, {
-            loginCount: increment(1),
-          });
-        }
-        setLoginCount(currentCount + 1);
-      }
-
       setEmail('');
       setPassword('');
     } catch (error: any) {
@@ -197,16 +152,14 @@ function HomeContent() {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const currentUser = userCredential.user;
 
-      // Create user profile with initial login count of 1 (sign-up = first access)
+      // Create user profile
       const userRef = doc(db, 'users', currentUser.uid);
       await setDoc(userRef, {
         uid: currentUser.uid,
         email: currentUser.email,
         displayName: currentUser.email?.split('@')[0] || 'Doctor',
         createdAt: serverTimestamp(),
-        loginCount: 1,
       });
-      setLoginCount(1);
 
       setEmail('');
       setPassword('');
@@ -229,7 +182,6 @@ function HomeContent() {
   const handleSignOut = async () => {
     try {
       await signOut(auth);
-      setTrialExpired(false);
     } catch (error) {
       console.error('Error signing out:', error);
     }
@@ -254,25 +206,16 @@ function HomeContent() {
             <h1 className="text-xl font-bold tracking-tight text-[#111827]">
               FSP Guide for <span className="font-serif italic font-medium">busy professionals</span>
             </h1>
-            <span className="text-[10px] font-black text-[#F59E0B] uppercase tracking-[0.15em]">Trial Version</span>
           </div>
         </div>
         
         {user ? (
           <div className="flex items-center gap-6">
             {/* Account Status Badge */}
-            {!trialExpired && !isPaid && (
-              <div className="flex items-center gap-2 bg-[#FEF3C7] text-[#92400E] text-xs font-bold px-3 py-1.5 rounded-full border border-[#FDE68A]">
-                <Shield className="w-3.5 h-3.5" />
-                Trial: {MAX_TRIAL_LOGINS - loginCount + 1 > 0 ? `${MAX_TRIAL_LOGINS - loginCount + 1} of ${MAX_TRIAL_LOGINS} remaining` : 'Expired'}
-              </div>
-            )}
-            {isPaid && (
-              <div className="flex items-center gap-2 bg-[#D1FAE5] text-[#065F46] text-xs font-bold px-3 py-1.5 rounded-full border border-[#A7F3D0]">
-                <Star className="w-3.5 h-3.5" />
-                Premium
-              </div>
-            )}
+            <div className="flex items-center gap-2 bg-[#D1FAE5] text-[#065F46] text-xs font-bold px-3 py-1.5 rounded-full border border-[#A7F3D0]">
+              <Star className="w-3.5 h-3.5" />
+              Premium
+            </div>
             <div className="flex items-center gap-3 pr-2 border-r border-[#E5E7EB]">
                <RankBadge rank={profile.rank} showIconOnly />
                <div className="flex flex-col">
@@ -320,17 +263,6 @@ function HomeContent() {
                 <h3 className="text-xl font-bold text-[#111827]">
                   {isSignUp ? 'Konto erstellen' : 'Anmelden'}
                 </h3>
-              </div>
-
-              {/* Trial info banner */}
-              <div className="bg-[#FEF3C7] border border-[#FDE68A] rounded-2xl p-4 mb-6 text-left">
-                <div className="flex items-start gap-3">
-                  <Shield className="w-5 h-5 text-[#D97706] mt-0.5 shrink-0" />
-                  <div>
-                    <p className="text-sm font-bold text-[#92400E]">Kostenlose Testversion</p>
-                    <p className="text-xs text-[#B45309] mt-1">Sie haben <strong>{MAX_TRIAL_LOGINS} kostenlose Anmeldungen</strong>. Jede Anmeldung zählt als ein Zugriff.</p>
-                  </div>
-                </div>
               </div>
 
               <form onSubmit={isSignUp ? handleSignUp : handleSignIn} className="space-y-4">
@@ -413,32 +345,7 @@ function HomeContent() {
                   onClick={() => { setIsSignUp(!isSignUp); setAuthError(null); }}
                   className="text-sm font-medium text-[#00B4D8] hover:underline"
                 >
-                  {isSignUp ? 'Bereits ein Konto? Anmelden' : 'Noch kein Konto? Kostenlos registrieren'}
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : trialExpired ? (
-          /* Trial Expired Overlay */
-          <div className="text-center max-w-2xl mx-auto mt-12">
-            <div className="bg-white rounded-[32px] border border-[#E5E7EB] p-12 shadow-sm">
-              <div className="w-20 h-20 bg-[#FEF2F2] rounded-[24px] flex items-center justify-center mx-auto mb-8">
-                <AlertTriangle className="w-10 h-10 text-[#EF4444]" />
-              </div>
-              <h2 className="text-3xl font-bold text-[#111827] mb-4">Testversion abgelaufen</h2>
-              <p className="text-lg text-[#6B7280] mb-8 leading-relaxed">
-                Sie haben Ihre <strong>{MAX_TRIAL_LOGINS} kostenlosen Anmeldungen</strong> aufgebraucht. 
-                Aktualisieren Sie auf die Vollversion, um unbegrenzten Zugriff zu erhalten.
-              </p>
-              <div className="space-y-4">
-                <Link href="/checkout" className="block w-full text-center px-8 py-4 bg-[#00B4D8] hover:bg-[#0077B6] text-white text-lg font-bold rounded-2xl transition-all shadow-xl hover:shadow-2xl hover:-translate-y-1 active:translate-y-0">
-                  Vollversion freischalten
-                </Link>
-                <button 
-                  onClick={handleSignOut}
-                  className="w-full px-8 py-3 text-[#6B7280] hover:text-[#111827] font-medium text-sm transition-all"
-                >
-                  Abmelden
+                  {isSignUp ? 'Bereits ein Konto? Anmelden' : 'Noch kein Konto? Registrieren'}
                 </button>
               </div>
             </div>
@@ -446,32 +353,15 @@ function HomeContent() {
         ) : (
           <div className="space-y-12">
             <div className="bg-white rounded-[32px] border border-[#E5E7EB] p-10 shadow-sm">
-              {paymentSuccess && (
-                <div className="mb-6 bg-[#D1FAE5] border border-[#A7F3D0] rounded-2xl p-4 text-left flex items-start gap-3">
-                  <Star className="w-5 h-5 text-[#059669] mt-0.5 shrink-0" />
-                  <div>
-                    <p className="text-sm font-bold text-[#065F46]">Zahlung erfolgreich!</p>
-                    <p className="text-xs text-[#047857] mt-1">Ihr Konto wurde erfolgreich auf die Vollversion erweitert.</p>
-                  </div>
-                </div>
-              )}
-
               <div className="mb-10">
                 <h2 className="text-3xl font-bold text-[#111827] mb-3">Willkommen zurück, Herr Doktor.</h2>
                 <p className="text-lg text-[#6B7280]">Your path to medical recognition in Germany, optimized for your schedule.</p>
                 
                 {/* Account Status indicator */}
-                {!isPaid ? (
-                  <div className="mt-4 inline-flex items-center gap-2 bg-[#FEF3C7] text-[#92400E] text-sm font-bold px-4 py-2 rounded-full border border-[#FDE68A]">
-                    <Shield className="w-4 h-4" />
-                    Verbleibende Anmeldungen: {MAX_TRIAL_LOGINS - loginCount + 1 > 0 ? MAX_TRIAL_LOGINS - loginCount + 1 : 0} von {MAX_TRIAL_LOGINS}
-                  </div>
-                ) : (
-                  <div className="mt-4 inline-flex items-center gap-2 bg-[#D1FAE5] text-[#065F46] text-sm font-bold px-4 py-2 rounded-full border border-[#A7F3D0]">
-                    <Star className="w-4 h-4" />
-                    Vollversion Aktiviert. Viel Erfolg!
-                  </div>
-                )}
+                <div className="mt-4 inline-flex items-center gap-2 bg-[#D1FAE5] text-[#065F46] text-sm font-bold px-4 py-2 rounded-full border border-[#A7F3D0]">
+                  <Star className="w-4 h-4" />
+                  Vollversion Aktiviert. Viel Erfolg!
+                </div>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
