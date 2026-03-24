@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const PUBLIC_PATHS = [
-  '/', // Allow home page for auth check
   '/payment',
   '/api/stripe-webhook',
   '/api/create-checkout-session',
@@ -13,6 +12,11 @@ const PUBLIC_PATHS = [
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   console.log('⚙️ MIDDLEWARE HIT:', pathname);
+
+  // Allow exactly root to load the landing page and auth checks
+  if (pathname === '/') {
+    return NextResponse.next();
+  }
 
   // Allow public paths
   if (PUBLIC_PATHS.some(p => pathname.startsWith(p))) {
