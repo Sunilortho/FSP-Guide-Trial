@@ -51,7 +51,7 @@ function HomeContent() {
 
   useEffect(() => {
     if (searchParams.get('success') === 'true') {
-      setPaymentSuccess(true);
+      setTimeout(() => setPaymentSuccess(true), 0);
     }
   }, [searchParams]);
 
@@ -101,10 +101,11 @@ function HomeContent() {
     else if (points >= 50) newRank = 'Page';
 
     if (newRank !== profile.rank) {
-      setProfile(prev => ({ ...prev, rank: newRank }));
+      setTimeout(() => setProfile(prev => ({ ...prev, rank: newRank })), 0);
       const userRef = doc(db, 'users', user.uid);
       updateDoc(userRef, { rank: newRank }).catch(console.error);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile.points, user]);
 
   const handleSignIn = async (e: React.FormEvent) => {

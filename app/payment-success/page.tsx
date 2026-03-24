@@ -15,7 +15,7 @@ function PaymentSuccessContent() {
     if (sessionId) {
       // Set the user_paid cookie (1 year expiry)
       document.cookie = 'user_paid=true; path=/; max-age=31536000; SameSite=Lax';
-      setVerified(true);
+      setTimeout(() => setVerified(true), 0);
 
       // Redirect to home after 3 seconds
       setTimeout(() => {
