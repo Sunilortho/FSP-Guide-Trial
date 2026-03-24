@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const PUBLIC_PATHS = [
+  '/', // Allow home page for auth check
   '/payment',
   '/api/stripe-webhook',
   '/api/create-checkout-session',

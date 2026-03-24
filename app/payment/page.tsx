@@ -26,8 +26,26 @@ export default function PaymentPage() {
   const [authLoading, setAuthLoading] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
+      if (currentUser) {
+        // Check if user is already paid in Firestore
+        const { getFirestore, doc, getDoc } = await import('firebase/firestore');
+        const db = getFirestore();
+        const userRef = doc(db, 'users', currentUser.uid);
+        const userSnap = await getDoc(userRef);
+        
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          if (userData.isPaid === true || userData.hasPaid === true) {
+            // Set the user_paid cookie (1 year expiry)
+            document.cookie = 'user_paid=true; path=/; max-age=31536000; SameSite=Lax';
+            // Redirect to home
+            window.location.href = '/';
+            return;
+          }
+        }
+      }
       setLoading(false);
     });
     return () => unsubscribe();
