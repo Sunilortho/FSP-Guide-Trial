@@ -6,6 +6,7 @@ import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
   User
 } from 'firebase/auth';
 import { Stethoscope, Mail, Lock, AlertTriangle, ShieldCheck, CheckCircle2, User as UserIcon, MapPin } from 'lucide-react';
@@ -97,6 +98,26 @@ export default function PaymentPage() {
         setAuthError('E-Mail-Anmeldung ist in Firebase noch nicht aktiviert!');
       } else {
         setAuthError(error.message || 'Ein Fehler ist aufgetreten.');
+      }
+    }
+    setAuthLoading(false);
+  };
+
+  const handleResetPassword = async () => {
+    if (!email) {
+      setAuthError('Bitte geben Sie Ihre E-Mail-Adresse ein, um das Passwort zurückzusetzen.');
+      return;
+    }
+    setAuthLoading(true);
+    setAuthError(null);
+    try {
+      await sendPasswordResetEmail(auth, email);
+      alert('Eine E-Mail zum Zurücksetzen des Passworts wurde gesendet!');
+    } catch (error: any) {
+      if (error.code === 'auth/user-not-found') {
+        setAuthError('Benutzer nicht gefunden. Bitte registrieren Sie sich.');
+      } else {
+        setAuthError(error.message || 'Fehler beim Senden der E-Mail.');
       }
     }
     setAuthLoading(false);
@@ -253,6 +274,12 @@ export default function PaymentPage() {
                     {authLoading ? 'Bitte warten...' : isSignUp ? 'Konto erstellen' : 'Anmelden'}
                   </button>
                 </form>
+                {!isSignUp && (
+                  <button type="button" onClick={handleResetPassword} disabled={authLoading}
+                    className="mt-3 text-sm font-medium text-[#6B7280] hover:text-[#111827] w-full text-center transition-colors">
+                    Passwort vergessen?
+                  </button>
+                )}
                 <button onClick={() => { setIsSignUp(!isSignUp); setAuthError(null); }}
                   className="mt-3 text-sm font-medium text-[#00B4D8] hover:underline w-full text-center">
                   {isSignUp ? 'Bereits ein Konto? Anmelden' : 'Noch kein Konto? Registrieren'}
