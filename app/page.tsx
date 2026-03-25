@@ -40,6 +40,7 @@ function HomeContent() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [authError, setAuthError] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
+  const [resetSuccess, setResetSuccess] = useState(false);
   const [profile, setProfile] = useState<{
     avatar_url?: string;
     rank: RankType;
@@ -216,19 +217,20 @@ function HomeContent() {
 
   const handleResetPassword = async () => {
     if (!email) {
-      setAuthError('Bitte geben Sie Ihre E-Mail-Adresse ein, um das Passwort zurückzusetzen.');
+      setAuthError('Bitte geben Sie zuerst Ihre E-Mail-Adresse ein.');
       return;
     }
     setAuthLoading(true);
     setAuthError(null);
+    setResetSuccess(false);
     try {
       await sendPasswordResetEmail(auth, email);
-      alert('Eine E-Mail zum Zurücksetzen des Passworts wurde gesendet!');
+      setResetSuccess(true);
     } catch (error: any) {
-      if (error.code === 'auth/user-not-found') {
-        setAuthError('Benutzer nicht gefunden. Bitte registrieren Sie sich.');
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-email') {
+        setAuthError('Diese E-Mail-Adresse ist nicht registriert.');
       } else {
-        setAuthError(error.message || 'Fehler beim Senden der E-Mail.');
+        setAuthError('Fehler beim Senden der E-Mail. Bitte versuchen Sie es erneut.');
       }
     }
     setAuthLoading(false);
@@ -372,6 +374,15 @@ function HomeContent() {
                   <div className="bg-[#FEF2F2] border border-[#FEE2E2] rounded-xl p-3 flex items-start gap-2">
                     <AlertTriangle className="w-4 h-4 text-[#EF4444] mt-0.5 shrink-0" />
                     <p className="text-sm text-[#EF4444] font-medium">{authError}</p>
+                  </div>
+                )}
+
+                {resetSuccess && (
+                  <div className="bg-[#ECFDF5] border border-[#A7F3D0] rounded-xl p-3 flex items-start gap-2">
+                    <Shield className="w-4 h-4 text-[#10B981] mt-0.5 shrink-0" />
+                    <p className="text-sm text-[#065F46] font-medium">
+                      ✅ E-Mail gesendet! Bitte prüfen Sie auch Ihren Spam-Ordner.
+                    </p>
                   </div>
                 )}
 
