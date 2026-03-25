@@ -224,14 +224,21 @@ function HomeContent() {
     setAuthError(null);
     setResetSuccess(false);
     try {
-      await sendPasswordResetEmail(auth, email);
-      setResetSuccess(true);
-    } catch (error: any) {
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-email') {
-        setAuthError('Diese E-Mail-Adresse ist nicht registriert.');
+      const response = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        setResetSuccess(true);
       } else {
-        setAuthError('Fehler beim Senden der E-Mail. Bitte versuchen Sie es erneut.');
+        setAuthError(data.error || 'Fehler beim Senden der E-Mail. Bitte versuchen Sie es erneut.');
       }
+    } catch (error: any) {
+      setAuthError('Netzwerkfehler. Bitte versuchen Sie es später erneut.');
     }
     setAuthLoading(false);
   };
