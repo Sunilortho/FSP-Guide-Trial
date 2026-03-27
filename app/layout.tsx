@@ -3,6 +3,7 @@ import { Inter, Playfair_Display } from 'next/font/google';
 import './globals.css';
 import AIAssistant from '@/components/AIAssistant';
 import { cookies } from 'next/headers';
+import Script from 'next/script';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -29,6 +30,12 @@ export default async function RootLayout({children}: {children: React.ReactNode}
 
   return (
     <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
+      <head>
+        <Script 
+          src="https://www.google.com/recaptcha/enterprise.js?render=6LeA7JYsAAAAAE6LNsneNwTYJQpzu2GhQbsz8tCy"
+          strategy="beforeInteractive"
+        />
+      </head>
       <body suppressHydrationWarning className="font-sans">
         {children}
         {showAIAssistant && <AIAssistant />}

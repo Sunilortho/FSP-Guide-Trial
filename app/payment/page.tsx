@@ -87,14 +87,20 @@ export default function PaymentPage() {
       setPassword('');
       setConfirmPassword('');
     } catch (error: any) {
+      console.error('Auth error:', error);
       if (error.message === 'Passwörter stimmen nicht überein.' || error.message === 'Bitte füllen Sie alle Felder aus.') {
         setAuthError(error.message);
       } else if (error.code === 'auth/email-already-in-use') {
-        setAuthError('Diese E-Mail wird bereits verwendet.');
+        setIsSignUp(false); // Switch to login mode automatically
+        setAuthError('Diese E-Mail ist bereits registriert. Bitte melden Sie sich an oder setzen Sie Ihr Passwort zurück.');
       } else if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found') {
-        setAuthError('Ungültige E-Mail oder Passwort.');
+        setAuthError('E-Mail nicht gefunden oder Passwort falsch.');
+      } else if (error.code === 'auth/wrong-password') {
+        setAuthError('Falsches Passwort. Bitte versuchen Sie es erneut.');
       } else if (error.code === 'auth/weak-password') {
-        setAuthError('Passwort zu schwach (mind. 6 Zeichen).');
+        setAuthError('Das Passwort ist zu schwach (mind. 6 Zeichen).');
+      } else if (error.code === 'auth/too-many-requests') {
+        setAuthError('Zu viele Versuche. Bitte versuchen Sie es später erneut.');
       } else if (error.code === 'auth/operation-not-allowed') {
         setAuthError('E-Mail-Anmeldung ist in Firebase noch nicht aktiviert!');
       } else {
@@ -291,12 +297,10 @@ export default function PaymentPage() {
                     {authLoading ? 'Bitte warten...' : isSignUp ? 'Konto erstellen' : 'Anmelden'}
                   </button>
                 </form>
-                {!isSignUp && (
-                  <button type="button" onClick={handleResetPassword} disabled={authLoading}
-                    className="mt-3 text-sm font-medium text-[#6B7280] hover:text-[#111827] w-full text-center transition-colors">
-                    Passwort vergessen?
-                  </button>
-                )}
+                <button type="button" onClick={handleResetPassword} disabled={authLoading}
+                  className="mt-3 text-sm font-medium text-[#6B7280] hover:text-[#00B4D8] w-full text-center transition-colors">
+                  Passwort vergessen?
+                </button>
                 <button onClick={() => { setIsSignUp(!isSignUp); setAuthError(null); }}
                   className="mt-3 text-sm font-medium text-[#00B4D8] hover:underline w-full text-center">
                   {isSignUp ? 'Bereits ein Konto? Anmelden' : 'Noch kein Konto? Registrieren'}

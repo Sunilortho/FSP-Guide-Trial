@@ -23,8 +23,8 @@ export async function POST(req: NextRequest) {
 
       // 2. Send the link via Resend
       if (process.env.RESEND_API_KEY) {
-        await resend.emails.send({
-          from: 'FSP Guide <onboarding@resend.dev>',
+        const res = await resend.emails.send({
+          from: 'Medicortex <noreply@send.medicortex.de>',
           to: email,
           subject: 'Passwort zurücksetzen – FSP Guide 🔐',
           html: `
@@ -43,18 +43,36 @@ export async function POST(req: NextRequest) {
             </div>
           `
         });
-        console.log(`📧 Reliable password reset email sent to ${email} via Resend`);
+        
+        if (res.error) {
+          console.error('Resend API Error:', res.error);
+          return NextResponse.json({ error: 'Resend Fehler: ' + res.error.message }, { status: 500 });
+        }
+        
+        console.log(`📧 Reliable password reset email sent to ${email} via Resend. ID: ${res.data?.id}`);
       } else {
         throw new Error('RESEND_API_KEY is missing');
       }
 
-      return NextResponse.json({ success: true });
+      const responseData: any = { success: true };
+      // Only return the link in development for debugging
+      if (process.env.NODE_ENV === 'development') {
+        responseData.debugLink = resetLink;
+      }
+
+      return NextResponse.json(responseData);
     } catch (error: any) {
       console.error('Error generating reset link or sending email:', error);
       if (error.code === 'auth/user-not-found') {
         return NextResponse.json({ error: 'Diese E-Mail-Adresse ist nicht registriert.' }, { status: 404 });
       }
-      return NextResponse.json({ error: 'Fehler beim Senden der E-Mail. Bitte versuchen Sie es später erneut.' }, { status: 500 });
+      
+      const errorResponse: any = { error: 'Fehler: ' + (error.message || 'Unbekannter Fehler') };
+      if (process.env.NODE_ENV === 'development' && error.message.includes('FIREBASE_SERVICE_ACCOUNT_KEY')) {
+         errorResponse.error = 'Firebase Admin Service Account Key is missing. Please add it to .env.local';
+      }
+      
+      return NextResponse.json(errorResponse, { status: 500 });
     }
   } catch (error) {
     console.error('Invalid request:', error);

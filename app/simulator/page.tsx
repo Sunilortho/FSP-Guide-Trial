@@ -6,6 +6,10 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PATIENT_SCENARIOS } from '../constants/patientScenarios';
 import AuthGuard from '../components/AuthGuard';
+import { db, auth } from '../lib/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { updateXP } from '../lib/xp';
+import { CheckCircle, Trophy, Home } from 'lucide-react';
 
 type Message = {
   id: string;
@@ -24,8 +28,10 @@ export default function SimulatorPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [transcript, setTranscript] = useState('');
-  const [error, setError] = useState<string | null>(null);
+   const [error, setError] = useState<string | null>(null);
+  const [isEnding, setIsEnding] = useState(false);
+  const [showSummary, setShowSummary] = useState(false);
+  const [finalScore, setFinalScore] = useState(0);
   
   const [realtimeFeedback, setRealtimeFeedback] = useState<{
     feedback?: string;
@@ -442,6 +448,41 @@ export default function SimulatorPage() {
     // Initial greeting from patient
     handleSend("Guten Tag, ich bin der behandelnde Arzt. Wie kann ich Ihnen helfen?");
   };
+
+  const handleEndSession = async () => {
+    if (messages.length < 2 || isEnding) return;
+    setIsEnding(true);
+
+    // Calculate a mock score based on message quality/length
+    // In a real app, this would be evaluated by LLM
+    const userMessages = messages.filter(m => m.role === 'user');
+    const score = Math.min(Math.round(userMessages.length * 15 + Math.random() * 20), 98);
+    setFinalScore(score);
+
+    try {
+      const user = auth.currentUser;
+      if (user) {
+        // 1. Save to practiceSessions
+        await addDoc(collection(db, 'practiceSessions'), {
+          userId: user.uid,
+          scenarioId: settings.scenarioId,
+          score: score,
+          createdAt: new Date().toISOString(),
+          timestamp: serverTimestamp(),
+          messageCount: messages.length
+        });
+
+        // 2. Award XP (50 XP for completing a session)
+        await updateXP(user.uid, 50);
+      }
+      setShowSummary(true);
+    } catch (err) {
+      console.error('Failed to end session:', err);
+      setError('Verbindung zum Server unterbrochen.');
+    } finally {
+      setIsEnding(false);
+    }
+  };
   return (
     <AuthGuard>
     <div className="min-h-screen bg-[#F8F9FA] flex flex-col font-sans text-[#1A1A1A]">
@@ -459,12 +500,17 @@ export default function SimulatorPage() {
           </div>
         </div>
         {!showSettings && (
-          <button 
-            onClick={() => setShowSettings(true)}
-            className="p-2 hover:bg-[#F3F4F6] rounded-xl transition-colors"
-            title="Einstellungen"
-          >
             <Settings className="w-5 h-5 text-[#6B7280]" />
+          </button>
+        )}
+        {!showSettings && messages.length > 2 && !showSummary && (
+          <button 
+            onClick={handleEndSession}
+            disabled={isEnding}
+            className="flex items-center gap-2 px-4 py-2 bg-[#10B981] hover:bg-[#059669] text-white rounded-xl text-sm font-bold shadow-sm transition-all disabled:opacity-50"
+          >
+            {isEnding ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+            Session Beenden
           </button>
         )}
       </header>
@@ -791,6 +837,56 @@ export default function SimulatorPage() {
         )}
       </main>
     </div>
+    
+    {/* Summary Modal */}
+    <AnimatePresence>
+      {showSummary && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white rounded-[40px] p-10 max-w-md w-full shadow-2xl text-center"
+          >
+            <div className="w-20 h-20 bg-[#F5A623] rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-orange-200">
+              <Trophy className="w-10 h-10 text-white" />
+            </div>
+            
+            <h2 className="text-3xl font-black text-[#111827] mb-2">Simulation Beendet!</h2>
+            <p className="text-[#6B7280] font-medium mb-8">Hervorragende Arbeit, Herr Kollege.</p>
+            
+            <div className="bg-[#F9FAFB] rounded-3xl p-6 mb-8 border border-[#F3F4F6]">
+              <div className="flex justify-between items-center mb-4">
+                <span className="text-sm font-bold text-[#6B7280] uppercase tracking-wider">Dein Score</span>
+                <span className="text-2xl font-black text-[#10B981]">{finalScore}%</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-bold text-[#6B7280] uppercase tracking-wider">Erhaltene XP</span>
+                <span className="text-2xl font-black text-[#00B4D8]">+50 XP</span>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <Link 
+                href="/"
+                className="w-full bg-[#111827] text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 hover:bg-black transition-all shadow-lg"
+              >
+                <Home className="w-5 h-5" />
+                Zum Dashboard
+              </Link>
+              <button 
+                onClick={() => {
+                  setShowSummary(false);
+                  setShowSettings(true);
+                }}
+                className="w-full bg-white text-[#6B7280] border border-[#E5E7EB] font-bold py-4 rounded-2xl hover:bg-gray-50 transition-all font-bold"
+              >
+                Neuen Fall Starten
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
     </AuthGuard>
   );
 }
