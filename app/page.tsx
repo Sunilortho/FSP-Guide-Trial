@@ -439,12 +439,12 @@ function HomeContent() {
                   { label: 'Begriffe', icon: BookOpen, color: 'bg-[#6366F1]', link: '/begriffe' },
                   { label: 'Arztbrief', icon: FileText, color: 'bg-[#10B981]', link: '/arztbrief' },
                 ].map(item => (
-                  <Link key={item.label} href={item.link} className="group bg-[#F9FAFB] border border-[#E5E7EB] rounded-2xl p-6 hover:shadow-lg transition-all text-center">
+                  <a key={item.label} href={item.link} className="group bg-[#F9FAFB] border border-[#E5E7EB] rounded-2xl p-6 hover:shadow-lg transition-all text-center block">
                     <div className={`${item.color} w-10 h-10 rounded-xl mx-auto flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform`}>
                       <item.icon className="w-5 h-5 text-white" />
                     </div>
                     <span className="font-bold text-sm text-[#111827]">{item.label}</span>
-                  </Link>
+                  </a>
                 ))}
               </div>
 
