@@ -23,7 +23,7 @@ Identify any grammatical errors, awkward phrasing, or incorrect medical terminol
 Provide a corrected version of the text, an explanation of the errors, and any specific hints for medical terminology.`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-2.5-flash',
       contents: [{ role: 'user', parts: [{ text }] }],
       config: {
         systemInstruction,

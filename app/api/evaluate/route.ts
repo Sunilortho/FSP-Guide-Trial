@@ -30,7 +30,7 @@ If there is a specific grammar issue, provide a grammarCorrection.`;
       : `Doctor (User) said: "${text}"`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-2.5-flash',
       contents: [{ role: 'user', parts: [{ text: promptText }] }],
       config: {
         systemInstruction,

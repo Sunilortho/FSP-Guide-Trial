@@ -28,7 +28,7 @@ Instructions:
 - If there are no colloquialisms, just say "Keine umgangssprachlichen Ausdrücke gefunden."`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-2.5-flash",
       contents: [{ parts: [{ text }] }],
       config: {
         systemInstruction,

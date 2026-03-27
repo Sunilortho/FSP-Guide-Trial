@@ -45,7 +45,7 @@ Instructions:
     }));
 
     const response = await ai.models.generateContentStream({
-      model: "gemini-3-flash-preview",
+      model: "gemini-2.5-flash",
       contents: formattedContents,
       config: {
         systemInstruction,
