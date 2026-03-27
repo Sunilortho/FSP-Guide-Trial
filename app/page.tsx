@@ -123,9 +123,9 @@ function HomeContent() {
             const currentLoginCount = data.loginCount || 0;
             if (!data.hasPaid) {
               if (currentLoginCount <= 2) {
-                document.cookie = "trial_access=true; path=/; max-age=86400"; // Ensure it survives page refresh
+                document.cookie = "trial_access=true; path=/; max-age=86400; SameSite=Lax"; // Ensure it survives page refresh
               } else {
-                document.cookie = "trial_access=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+                document.cookie = "trial_access=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
               }
             }
 
@@ -201,9 +201,9 @@ function HomeContent() {
           const count = (data.loginCount || 0) + 1;
           await updateDoc(userRef, { loginCount: count }).catch(console.error);
           if (count <= 2) {
-            document.cookie = "trial_access=true; path=/; max-age=86400"; // 24 hours
+            document.cookie = "trial_access=true; path=/; max-age=86400; SameSite=Lax"; // 24 hours
           } else {
-            document.cookie = "trial_access=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+            document.cookie = "trial_access=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
           }
         }
       }
@@ -258,7 +258,7 @@ function HomeContent() {
         lastLoginDate: new Date().toISOString().split('T')[0],
         loginCount: 1
       });
-      document.cookie = "trial_access=true; path=/; max-age=86400"; // First login
+      document.cookie = "trial_access=true; path=/; max-age=86400; SameSite=Lax"; // First login
     } catch (error: any) {
       console.error('Sign-up error:', error);
       if (error.code === 'auth/email-already-in-use') {
