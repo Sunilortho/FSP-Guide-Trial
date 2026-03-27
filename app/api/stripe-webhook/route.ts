@@ -4,7 +4,6 @@ import { getStripe } from '@/lib/stripe';
 import { adminDb } from '@/lib/firebaseAdmin';
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(req: NextRequest) {
   const body = await req.text();
@@ -32,6 +31,7 @@ export async function POST(req: NextRequest) {
 
         const customerEmail = session.customer_details?.email || session.metadata?.email;
         if (customerEmail && process.env.RESEND_API_KEY) {
+          const resend = new Resend(process.env.RESEND_API_KEY);
 
           // ─── DAY 0: Welcome Email ───────────────────────────────────────
           try {
