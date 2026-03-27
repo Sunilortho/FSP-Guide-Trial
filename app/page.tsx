@@ -156,6 +156,7 @@ function HomeContent() {
     setAuthError(null);
     setAuthLoading(true);
     try {
+      /* Temporarily disabled because Vercel domain isn't whitelisted in ReCAPTCHA console
       if (window.grecaptcha?.enterprise) {
         const token = await window.grecaptcha.enterprise.execute('6LeA7JYsAAAAAE6LNsneNwTYJQpzu2GhQbsz8tCy', {action: 'LOGIN'});
         const verifyResp = await fetch('/api/auth/verify-captcha', {
@@ -170,6 +171,7 @@ function HomeContent() {
           return;
         }
       }
+      */
       await signInWithEmailAndPassword(auth, email, password);
     } catch (error: any) {
       console.error('Sign-in error:', error);
@@ -195,6 +197,7 @@ function HomeContent() {
     }
     setAuthLoading(true);
     try {
+      /* Temporarily disabled because Vercel domain isn't whitelisted in ReCAPTCHA console
       if (window.grecaptcha?.enterprise) {
         const token = await window.grecaptcha.enterprise.execute('6LeA7JYsAAAAAE6LNsneNwTYJQpzu2GhQbsz8tCy', {action: 'SIGNUP'});
         const verifyResp = await fetch('/api/auth/verify-captcha', {
@@ -209,6 +212,7 @@ function HomeContent() {
           return;
         }
       }
+      */
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       await setDoc(doc(db, 'users', userCredential.user.uid), {
         uid: userCredential.user.uid,
