@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth } from '@/lib/firebaseAdmin';
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+
 
 export async function POST(req: NextRequest) {
   try {
@@ -23,6 +23,7 @@ export async function POST(req: NextRequest) {
 
       // 2. Send the link via Resend
       if (process.env.RESEND_API_KEY) {
+        const resend = new Resend(process.env.RESEND_API_KEY);
         const res = await resend.emails.send({
           from: 'Medicortex <noreply@send.medicortex.de>',
           to: email,
