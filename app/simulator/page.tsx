@@ -105,6 +105,7 @@ export default function SimulatorPage() {
   const audioQueueRef = useRef<{index: number, audio: string}[]>([]);
   const nextAudioIndexRef = useRef<number>(0);
   const isPlayingRef = useRef<boolean>(false);
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
 
   const transcriptRef = useRef('');
 
@@ -381,10 +382,14 @@ export default function SimulatorPage() {
 
   const playNextAudio = async () => {
     if (isPlayingRef.current) return;
-    if (audioQueueRef.current.length === 0) return;
+    if (audioQueueRef.current.length === 0) {
+      setIsAudioPlaying(false);
+      return;
+    }
     if (audioQueueRef.current[0].index !== nextAudioIndexRef.current) return;
 
     isPlayingRef.current = true;
+    setIsAudioPlaying(true);
     const chunk = audioQueueRef.current.shift()!;
     nextAudioIndexRef.current++;
 
@@ -413,15 +418,20 @@ export default function SimulatorPage() {
         bytes[i] = binaryString.charCodeAt(i);
       }
 
-      const int16Array = new Int16Array(bytes.buffer);
-      const float32Array = new Float32Array(int16Array.length);
-      
-      for (let i = 0; i < int16Array.length; i++) {
-        float32Array[i] = int16Array[i] / 32768.0;
+      // Try raw PCM decoding first (Gemini's default format: 16-bit signed int, 24kHz mono)
+      let audioBuffer: AudioBuffer;
+      try {
+        const int16Array = new Int16Array(bytes.buffer);
+        const float32Array = new Float32Array(int16Array.length);
+        for (let i = 0; i < int16Array.length; i++) {
+          float32Array[i] = int16Array[i] / 32768.0;
+        }
+        audioBuffer = audioContext.createBuffer(1, float32Array.length, 24000);
+        audioBuffer.getChannelData(0).set(float32Array);
+      } catch {
+        // Fallback: try decoding as encoded audio (WAV/MP3/OGG)
+        audioBuffer = await audioContext.decodeAudioData(bytes.buffer.slice(0));
       }
-
-      const audioBuffer = audioContext.createBuffer(1, float32Array.length, 24000);
-      audioBuffer.getChannelData(0).set(float32Array);
 
       const source = audioContext.createBufferSource();
       source.buffer = audioBuffer;
@@ -832,7 +842,13 @@ export default function SimulatorPage() {
                     <Mic className="w-10 h-10 text-white" />
                   )}
                 </button>
-                <p className="text-[10px] font-black text-[#9CA3AF] mt-6 uppercase tracking-[0.2em]">
+                {isAudioPlaying && (
+                  <div className="flex items-center gap-2 mt-4 text-[#00B4D8] animate-pulse">
+                    <Volume2 className="w-4 h-4" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Patient spricht...</span>
+                  </div>
+                )}
+                <p className="text-[10px] font-black text-[#9CA3AF] mt-3 uppercase tracking-[0.2em]">
                   {isRecording ? 'Tippen zum Senden' : 'Tippen zum Sprechen'}
                 </p>
               </div>

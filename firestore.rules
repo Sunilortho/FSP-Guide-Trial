@@ -68,11 +68,13 @@ service cloud.firestore {
     }
     
     function isValidPracticeSession(data) {
-      return hasOnlyAllowedFields(['userId', 'scenarioId', 'score', 'createdAt']) &&
+      return hasOnlyAllowedFields(['userId', 'scenarioId', 'score', 'createdAt', 'timestamp', 'messageCount']) &&
              data.userId is string && data.userId.size() > 0 && data.userId.size() < 100 &&
              data.scenarioId is string && data.scenarioId.size() > 0 && data.scenarioId.size() < 100 &&
              (!('score' in data) || (data.score is number && data.score >= 0 && data.score <= 100)) &&
-             data.createdAt is timestamp;
+             data.createdAt is string &&
+             (!('timestamp' in data) || data.timestamp is timestamp) &&
+             (!('messageCount' in data) || data.messageCount is number);
     }
 
     // ===============================================================

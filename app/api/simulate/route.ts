@@ -47,7 +47,7 @@ ${settings.useColloquialisms ? '- If "Use Colloquialisms" is enabled, use common
     }));
 
     const chatResponseStream = await ai.models.generateContentStream({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-2.5-flash',
       contents: formattedContents,
       config: {
         systemInstruction,
