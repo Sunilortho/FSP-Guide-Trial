@@ -20,6 +20,7 @@ import { motion } from 'framer-motion';
 import AvatarUpload from '@/components/profile/AvatarUpload';
 import RankBadge, { RankType } from '@/components/profile/RankBadge';
 import ChatWindow from '@/components/chat/ChatWindow';
+import PhoneVerifyModal from '@/components/auth/PhoneVerifyModal';
 
 declare global {
   interface Window {
@@ -40,6 +41,7 @@ function HomeContent() {
   const [loading, setLoading] = useState(true);
   const [sessions, setSessions] = useState<any[]>([]);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [showPhoneVerifyModal, setShowPhoneVerifyModal] = useState(false);
 
   // Auth form state
   const [isSignUp, setIsSignUp] = useState(false);
@@ -57,7 +59,9 @@ function HomeContent() {
     xpHistory?: { [key: string]: number };
     examRegion?: string;
     lastDailyChallengeDate?: string;
-  }>({ rank: 'Initiate', points: 0, displayName: 'Doctor', xpHistory: {}, examRegion: '', lastDailyChallengeDate: '' });
+    hasPaid?: boolean;
+    phoneVerified?: boolean;
+  }>({ rank: 'Initiate', points: 0, displayName: 'Doctor', xpHistory: {}, examRegion: '', lastDailyChallengeDate: '', hasPaid: false, phoneVerified: false });
   const [showChat, setShowChat] = useState(false);
   const [streak, setStreak] = useState(0);
   const [showChatTooltip, setShowChatTooltip] = useState(false);
@@ -99,7 +103,9 @@ function HomeContent() {
               displayName: data.displayName || currentUser.email?.split('@')[0] || 'Doctor',
               xpHistory: activityData,
               examRegion: data.examRegion || '',
-              lastDailyChallengeDate: data.lastDailyChallengeDate || ''
+              lastDailyChallengeDate: data.lastDailyChallengeDate || '',
+              hasPaid: data.hasPaid || false,
+              phoneVerified: data.phoneVerified || false
             }));
 
             // --- Daily Streak Logic ---
@@ -122,7 +128,7 @@ function HomeContent() {
             // Restore trial access cookie if valid
             const currentLoginCount = data.loginCount || 0;
             if (!data.hasPaid) {
-              if (currentLoginCount <= 10) {
+              if (currentLoginCount <= 10 && data.phoneVerified) {
                 document.cookie = "trial_access=true; path=/; max-age=86400; SameSite=Lax"; // Ensure it survives page refresh
               } else {
                 document.cookie = "trial_access=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
@@ -200,7 +206,7 @@ function HomeContent() {
         if (!data.hasPaid) {
           const count = (data.loginCount || 0) + 1;
           await updateDoc(userRef, { loginCount: count }).catch(console.error);
-          if (count <= 10) {
+          if (count <= 10 && data.phoneVerified) {
             document.cookie = "trial_access=true; path=/; max-age=86400; SameSite=Lax"; // 24 hours
           } else {
             document.cookie = "trial_access=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
@@ -258,7 +264,8 @@ function HomeContent() {
         lastLoginDate: new Date().toISOString().split('T')[0],
         loginCount: 1
       });
-      document.cookie = "trial_access=true; path=/; max-age=86400; SameSite=Lax"; // First login
+      // Do not set trial_access cookie yet. They must verify phone first!
+      document.cookie = "trial_access=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
     } catch (error: any) {
       console.error('Sign-up error:', error);
       if (error.code === 'auth/email-already-in-use') {
@@ -438,14 +445,25 @@ function HomeContent() {
                   { label: 'Oberarzt', icon: UserIcon, color: 'bg-[#F5A623]', link: '/oberarzt' },
                   { label: 'Begriffe', icon: BookOpen, color: 'bg-[#6366F1]', link: '/begriffe' },
                   { label: 'Arztbrief', icon: FileText, color: 'bg-[#10B981]', link: '/arztbrief' },
-                ].map(item => (
-                  <a key={item.label} href={item.link} className="group bg-[#F9FAFB] border border-[#E5E7EB] rounded-2xl p-6 hover:shadow-lg transition-all text-center block">
-                    <div className={`${item.color} w-10 h-10 rounded-xl mx-auto flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform`}>
-                      <item.icon className="w-5 h-5 text-white" />
-                    </div>
-                    <span className="font-bold text-sm text-[#111827]">{item.label}</span>
-                  </a>
-                ))}
+                ].map(item => {
+                  const requiresVerification = !profile.hasPaid && !profile.phoneVerified;
+                  
+                  return requiresVerification ? (
+                    <button key={item.label} onClick={() => setShowPhoneVerifyModal(true)} className="group bg-[#F9FAFB] border border-[#E5E7EB] rounded-2xl p-6 hover:shadow-lg transition-all text-center block w-full">
+                      <div className={`${item.color} w-10 h-10 rounded-xl mx-auto flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform`}>
+                        <item.icon className="w-5 h-5 text-white" />
+                      </div>
+                      <span className="font-bold text-sm text-[#111827]">{item.label}</span>
+                    </button>
+                  ) : (
+                    <a key={item.label} href={item.link} className="group bg-[#F9FAFB] border border-[#E5E7EB] rounded-2xl p-6 hover:shadow-lg transition-all text-center block">
+                      <div className={`${item.color} w-10 h-10 rounded-xl mx-auto flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform`}>
+                        <item.icon className="w-5 h-5 text-white" />
+                      </div>
+                      <span className="font-bold text-sm text-[#111827]">{item.label}</span>
+                    </a>
+                  );
+                })}
               </div>
 
               <div className="grid lg:grid-cols-3 gap-6 mb-10">
@@ -596,6 +614,16 @@ function HomeContent() {
           </div>
         )}
       </main>
+
+      <PhoneVerifyModal
+        isOpen={showPhoneVerifyModal}
+        onClose={() => setShowPhoneVerifyModal(false)}
+        onSuccess={() => {
+          setShowPhoneVerifyModal(false);
+          setProfile(prev => ({ ...prev, phoneVerified: true }));
+        }}
+        userId={user?.uid || ''}
+      />
     </div>
   );
 }
