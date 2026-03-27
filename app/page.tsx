@@ -74,62 +74,81 @@ function HomeContent() {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
-        // Check user profile
-        const userRef = doc(db, 'users', currentUser.uid);
-        const activityRef = doc(db, 'users', currentUser.uid, 'progress', 'activity');
-        
-        const [userSnap, activitySnap] = await Promise.all([
-          getDoc(userRef),
-          getDoc(activityRef)
-        ]);
+        try {
+          // Check user profile
+          const userRef = doc(db, 'users', currentUser.uid);
+          const activityRef = doc(db, 'users', currentUser.uid, 'progress', 'activity');
+          
+          const [userSnap, activitySnap] = await Promise.all([
+            getDoc(userRef),
+            getDoc(activityRef).catch(e => {
+              console.error('Error fetching activity:', e);
+              return { exists: () => false, data: () => ({}) } as any;
+            })
+          ]);
 
-        if (userSnap.exists()) {
-          const data = userSnap.data();
-          const activityData = activitySnap.exists() ? activitySnap.data() : {};
+          if (userSnap.exists()) {
+            const data = userSnap.data();
+            const activityData = activitySnap.exists() ? activitySnap.data() : {};
 
-          setProfile(prev => ({
-            ...prev,
-            avatar_url: data.avatar_url,
-            rank: (data.rank as RankType) || 'Initiate',
-            points: data.points || 0,
-            displayName: data.displayName || currentUser.email?.split('@')[0] || 'Doctor',
-            xpHistory: activityData,
-            examRegion: data.examRegion || '',
-            lastDailyChallengeDate: data.lastDailyChallengeDate || ''
-          }));
+            setProfile(prev => ({
+              ...prev,
+              avatar_url: data.avatar_url,
+              rank: (data.rank as RankType) || 'Initiate',
+              points: data.points || 0,
+              displayName: data.displayName || currentUser.email?.split('@')[0] || 'Doctor',
+              xpHistory: activityData,
+              examRegion: data.examRegion || '',
+              lastDailyChallengeDate: data.lastDailyChallengeDate || ''
+            }));
 
-          // --- Daily Streak Logic ---
-          const today = new Date().toISOString().split('T')[0];
-          const lastLogin = data.lastLoginDate || '';
-          const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-          let newStreak = data.streak || 0;
-          if (lastLogin !== today) {
-            if (lastLogin === yesterday) {
-              newStreak = newStreak + 1;
+            // --- Daily Streak Logic ---
+            const today = new Date().toISOString().split('T')[0];
+            const lastLogin = data.lastLoginDate || '';
+            const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+            let newStreak = data.streak || 0;
+            if (lastLogin !== today) {
+              if (lastLogin === yesterday) {
+                newStreak = newStreak + 1;
+              } else {
+                newStreak = 1;
+              }
+              setStreak(newStreak);
+              updateDoc(userRef, { streak: newStreak, lastLoginDate: today }).catch(console.error);
             } else {
-              newStreak = 1;
+              setStreak(newStreak);
             }
-            setStreak(newStreak);
-            updateDoc(userRef, { streak: newStreak, lastLoginDate: today }).catch(console.error);
-          } else {
-            setStreak(newStreak);
-          }
 
-          // Show chat tooltip
-          const hasSeenTooltip = localStorage.getItem('fsp_chat_tooltip_seen');
-          if (!hasSeenTooltip) {
-            setTimeout(() => setShowChatTooltip(true), 2000);
+            // Restore trial access cookie if valid
+            const currentLoginCount = data.loginCount || 0;
+            if (!data.hasPaid) {
+              if (currentLoginCount <= 2) {
+                document.cookie = "trial_access=true; path=/; max-age=86400"; // Ensure it survives page refresh
+              } else {
+                document.cookie = "trial_access=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+              }
+            }
+
+            // Show chat tooltip
+            const hasSeenTooltip = localStorage.getItem('fsp_chat_tooltip_seen');
+            if (!hasSeenTooltip) {
+              setTimeout(() => setShowChatTooltip(true), 2000);
+            }
           }
+          
+          // Fetch sessions
+          const q = query(collection(db, 'practiceSessions'), where('userId', '==', currentUser.uid));
+          const querySnapshot = await getDocs(q);
+          setSessions(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        } catch (error) {
+          console.error("Error loading user data in onAuthStateChanged:", error);
+        } finally {
+          setLoading(false);
         }
-        
-        // Fetch sessions
-        const q = query(collection(db, 'practiceSessions'), where('userId', '==', currentUser.uid));
-        const querySnapshot = await getDocs(q);
-        setSessions(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       } else {
         setSessions([]);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => unsubscribe();
@@ -172,7 +191,22 @@ function HomeContent() {
         }
       }
       */
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      // Increment login count and grant trial access if applicable
+      const userRef = doc(db, 'users', userCredential.user.uid);
+      const userSnap = await getDoc(userRef);
+      if (userSnap.exists()) {
+        const data = userSnap.data();
+        if (!data.hasPaid) {
+          const count = (data.loginCount || 0) + 1;
+          await updateDoc(userRef, { loginCount: count }).catch(console.error);
+          if (count <= 2) {
+            document.cookie = "trial_access=true; path=/; max-age=86400"; // 24 hours
+          } else {
+            document.cookie = "trial_access=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+          }
+        }
+      }
     } catch (error: any) {
       console.error('Sign-in error:', error);
       if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
@@ -221,8 +255,10 @@ function HomeContent() {
         createdAt: serverTimestamp(),
         points: 0,
         streak: 1,
-        lastLoginDate: new Date().toISOString().split('T')[0]
+        lastLoginDate: new Date().toISOString().split('T')[0],
+        loginCount: 1
       });
+      document.cookie = "trial_access=true; path=/; max-age=86400"; // First login
     } catch (error: any) {
       console.error('Sign-up error:', error);
       if (error.code === 'auth/email-already-in-use') {

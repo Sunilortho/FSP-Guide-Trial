@@ -48,7 +48,7 @@ service cloud.firestore {
     // ===============================================================
     
     function isValidUser(data) {
-      return hasOnlyAllowedFields(['uid', 'email', 'displayName', 'createdAt', 'loginCount', 'isPaid', 'updatedAt', 'avatar_url', 'rank', 'points', 'hasPaid', 'paidAt', 'address']) &&
+      return hasOnlyAllowedFields(['uid', 'email', 'displayName', 'createdAt', 'loginCount', 'isPaid', 'updatedAt', 'avatar_url', 'rank', 'points', 'hasPaid', 'paidAt', 'address', 'streak', 'lastLoginDate', 'lastDailyChallengeDate', 'examRegion']) &&
              data.uid is string && data.uid.size() > 0 && data.uid.size() < 100 &&
              data.email is string && isValidEmail(data.email) && data.email.size() < 100 &&
              (!('displayName' in data) || (data.displayName is string && data.displayName.size() < 100)) &&
@@ -60,6 +60,10 @@ service cloud.firestore {
              (!('hasPaid' in data) || data.hasPaid is bool) &&
              (!('paidAt' in data) || (data.paidAt is string && data.paidAt.size() < 100)) &&
              (!('address' in data) || (data.address is string && data.address.size() < 500)) &&
+             (!('streak' in data) || (data.streak is number && data.streak >= 0)) &&
+             (!('lastLoginDate' in data) || (data.lastLoginDate is string)) &&
+             (!('lastDailyChallengeDate' in data) || (data.lastDailyChallengeDate is string)) &&
+             (!('examRegion' in data) || (data.examRegion is string)) &&
              data.createdAt is timestamp;
     }
     
@@ -80,6 +84,11 @@ service cloud.firestore {
       allow create: if isOwner(userId) && hasRequiredFields(['uid', 'email', 'createdAt']) && isValidUser(request.resource.data) && uidUnchanged();
       allow update: if isOwner(userId) && isValidUser(request.resource.data) && uidNotModified() && areImmutableFieldsUnchanged(['uid', 'createdAt']);
       allow delete: if isOwner(userId);
+      
+      // Allow access to progress subcollection
+      match /progress/{docId} {
+        allow read, write: if isOwner(userId);
+      }
     }
     
     match /practiceSessions/{sessionId} {
