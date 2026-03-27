@@ -6,9 +6,9 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PATIENT_SCENARIOS } from '../constants/patientScenarios';
 import AuthGuard from '../components/AuthGuard';
-import { db, auth } from '../lib/firebase';
+import { db, auth } from '../../lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { updateXP } from '../lib/xp';
+import { updateXP } from '../../lib/xp';
 import { CheckCircle, Trophy, Home } from 'lucide-react';
 
 type Message = {
@@ -26,6 +26,7 @@ type Message = {
 
 export default function SimulatorPage() {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [transcript, setTranscript] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
    const [error, setError] = useState<string | null>(null);
@@ -500,6 +501,10 @@ export default function SimulatorPage() {
           </div>
         </div>
         {!showSettings && (
+          <button 
+            onClick={() => setShowSettings(true)}
+            className="p-2 hover:bg-[#F3F4F6] rounded-xl transition-colors"
+          >
             <Settings className="w-5 h-5 text-[#6B7280]" />
           </button>
         )}
