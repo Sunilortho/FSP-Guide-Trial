@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
           // ─── DAY 0: Welcome Email ───────────────────────────────────────
           try {
             await resend.emails.send({
-              from: 'FSP Guide <onboarding@resend.dev>',
+              from: 'Medicortex <noreply@send.medicortex.de>',
               to: customerEmail,
               subject: 'Willkommen zum FSP Guide – Zugang freigeschaltet! 🎉',
               html: `
@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
           try {
             const day3 = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
             await resend.emails.send({
-              from: 'FSP Guide <onboarding@resend.dev>',
+              from: 'Medicortex <noreply@send.medicortex.de>',
               to: customerEmail,
               subject: 'Tag 3 – Wie läuft deine Vorbereitung? 🔥',
               scheduledAt: day3,
