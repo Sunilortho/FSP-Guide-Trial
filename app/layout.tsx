@@ -31,10 +31,12 @@ export default async function RootLayout({children}: {children: React.ReactNode}
   return (
     <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
       <head>
+        {/* Temporarily disabled ReCAPTCHA script for Vercel trial domain 
         <Script 
           src="https://www.google.com/recaptcha/enterprise.js?render=6LeA7JYsAAAAAE6LNsneNwTYJQpzu2GhQbsz8tCy"
           strategy="beforeInteractive"
         />
+        */}
       </head>
       <body suppressHydrationWarning className="font-sans">
         {children}
