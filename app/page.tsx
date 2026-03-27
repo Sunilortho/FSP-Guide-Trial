@@ -261,25 +261,10 @@ function HomeContent() {
         setAuthError(null);
         if (data.debugLink) setResetDebugLink(data.debugLink);
       } else {
-        // 2. Fallback to standard Firebase Email if Resend fails (e.g. no verified domain)
-        console.warn('Resend API failed, falling back to Firebase Standard reset:', data.error);
-        try {
-          await sendPasswordResetEmail(auth, email);
-          setResetSuccess(true);
-          setAuthError(null);
-        } catch (firebaseError: any) {
-          console.error('Firebase reset also failed:', firebaseError);
-          setAuthError(data.error || 'Fehler beim Senden. Bitte überprüfen Sie Ihr Postfach.');
-        }
+        setAuthError(data.error || 'Server-Fehler beim Senden der E-Mail.');
       }
-    } catch {
-      // Final Fallback for network issues
-      try {
-        await sendPasswordResetEmail(auth, email);
-        setResetSuccess(true);
-      } catch {
-        setAuthError('Netzwerkfehler. Bitte versuchen Sie es später erneut.');
-      }
+    } catch (err: any) {
+      setAuthError('Netzwerkfehler. Bitte versuchen Sie es später erneut.');
     } finally {
       setAuthLoading(false);
     }
