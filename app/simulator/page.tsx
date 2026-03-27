@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Mic, MicOff, Settings, User, Activity, Play, Square, Loader2, ArrowLeft, Lightbulb, Volume2, PenTool, MessageSquare } from 'lucide-react';
+import { Mic, MicOff, Settings, User, Activity, Play, Square, Loader2, ArrowLeft, Lightbulb, Volume2, PenTool, MessageSquare, CheckCircle, Trophy, Home } from 'lucide-react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PATIENT_SCENARIOS } from '../constants/patientScenarios';
@@ -9,7 +9,6 @@ import AuthGuard from '../components/AuthGuard';
 import { db, auth } from '../../lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { updateXP } from '../../lib/xp';
-import { CheckCircle, Trophy, Home } from 'lucide-react';
 
 type Message = {
   id: string;
@@ -29,7 +28,7 @@ export default function SimulatorPage() {
   const [transcript, setTranscript] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-   const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [isEnding, setIsEnding] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
   const [finalScore, setFinalScore] = useState(0);
