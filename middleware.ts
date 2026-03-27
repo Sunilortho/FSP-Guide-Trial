@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const PUBLIC_PATHS = [
   '/payment',
+  '/api/auth', // Allow login, password reset, and captcha verify APIs
   '/api/stripe-webhook',
   '/api/create-checkout-session',
   '/payment-success',
