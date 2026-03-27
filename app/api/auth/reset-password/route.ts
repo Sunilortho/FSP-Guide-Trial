@@ -68,9 +68,15 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Diese E-Mail-Adresse ist nicht registriert.' }, { status: 404 });
       }
       
-      const errorResponse: any = { error: 'Fehler: ' + (error.message || 'Unbekannter Fehler') };
-      if (process.env.NODE_ENV === 'development' && error.message.includes('FIREBASE_SERVICE_ACCOUNT_KEY')) {
-         errorResponse.error = 'Firebase Admin Service Account Key is missing. Please add it to .env.local';
+      const errorResponse: any = { 
+        error: 'Fehler: ' + (error.message || 'Unbekannter Fehler'),
+        details: error.stack // Add stack trace temporarily for debugging
+      };
+      if (error.message && error.message.includes('FIREBASE_SERVICE_ACCOUNT_KEY')) {
+         errorResponse.error = 'Firebase Admin Service Account Key is missing or invalid on Vercel.';
+      }
+      if (error.name === 'FirebaseError') {
+         errorResponse.error = `Firebase Error: ${error.code} - ${error.message}`;
       }
       
       return NextResponse.json(errorResponse, { status: 500 });
