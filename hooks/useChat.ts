@@ -1,68 +1,91 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { io, Socket } from 'socket.io-client';
+import { useEffect, useState, useCallback } from 'react';
+import { db } from '@/lib/firebase';
+import {
+  collection,
+  addDoc,
+  query,
+  orderBy,
+  limit,
+  onSnapshot,
+  serverTimestamp,
+  Timestamp,
+} from 'firebase/firestore';
 
-const SOCKET_URL = process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:3001';
+interface ChatMessage {
+  id: string;
+  sender_id: string;
+  sender_name?: string;
+  conversation_id: string;
+  content: string;
+  sent_at: string;
+}
 
 export function useChat(userId: string, conversationId: string) {
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isConnected, setIsConnected] = useState(false);
-  const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
-  const socketRef = useRef<Socket | null>(null);
+  const [typingUsers] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!userId || !conversationId) return;
 
-    const socket = io(SOCKET_URL);
-    socketRef.current = socket;
+    // Listen to messages in real-time via Firestore
+    const messagesRef = collection(db, 'chats', conversationId, 'messages');
+    const q = query(messagesRef, orderBy('createdAt', 'asc'), limit(100));
 
-    socket.on('connect', () => {
-      setIsConnected(true);
-      socket.emit('join_conversation', { userId, conversationId });
-    });
-
-    socket.on('disconnect', () => {
-      setIsConnected(false);
-    });
-
-    socket.on('new_message', (message) => {
-      setMessages((prev) => [...prev, message]);
-    });
-
-    socket.on('display_typing', ({ userId: typingUserId, isTyping }) => {
-      setTypingUsers((prev) => {
-        const next = new Set(prev);
-        if (isTyping) next.add(typingUserId);
-        else next.delete(typingUserId);
-        return next;
-      });
-    });
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        setIsConnected(true);
+        const msgs: ChatMessage[] = snapshot.docs.map((doc) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            sender_id: data.sender_id,
+            sender_name: data.sender_name || '',
+            conversation_id: conversationId,
+            content: data.content,
+            sent_at: data.createdAt
+              ? (data.createdAt as Timestamp).toDate().toISOString()
+              : new Date().toISOString(),
+          };
+        });
+        setMessages(msgs);
+      },
+      (error) => {
+        console.error('Chat listener error:', error);
+        setIsConnected(false);
+      }
+    );
 
     return () => {
-      socket.disconnect();
+      unsubscribe();
     };
   }, [userId, conversationId]);
 
-  const sendMessage = (content: string) => {
-    if (socketRef.current && content.trim()) {
-      socketRef.current.emit('send_message', {
-        sender_id: userId,
-        conversation_id: conversationId,
-        content,
-      });
-    }
-  };
+  const sendMessage = useCallback(
+    async (content: string) => {
+      if (!content.trim() || !userId || !conversationId) return;
 
-  const sendTyping = (isTyping: boolean) => {
-    if (socketRef.current) {
-      socketRef.current.emit('typing', {
-        userId,
-        conversationId,
-        isTyping,
-      });
-    }
-  };
+      try {
+        const messagesRef = collection(db, 'chats', conversationId, 'messages');
+        await addDoc(messagesRef, {
+          sender_id: userId,
+          content: content.trim(),
+          createdAt: serverTimestamp(),
+        });
+      } catch (error) {
+        console.error('Failed to send message:', error);
+      }
+    },
+    [userId, conversationId]
+  );
+
+  const sendTyping = useCallback((_isTyping: boolean) => {
+    // Typing indicators are not implemented with Firestore to keep it simple
+    // Could be added via a separate "typing" document if needed
+  }, []);
 
   return {
     messages,

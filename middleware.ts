@@ -30,6 +30,12 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // Check trial access
+  const hasTrial = req.cookies.get('trial_access')?.value;
+  if (hasTrial === 'true') {
+    return NextResponse.next();
+  }
+
   // Check payment status via cookie set after successful payment
   const hasPaid = req.cookies.get('user_paid')?.value;
   if (hasPaid === 'true') {

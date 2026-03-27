@@ -122,7 +122,7 @@ function HomeContent() {
             // Restore trial access cookie if valid
             const currentLoginCount = data.loginCount || 0;
             if (!data.hasPaid) {
-              if (currentLoginCount <= 2) {
+              if (currentLoginCount <= 10) {
                 document.cookie = "trial_access=true; path=/; max-age=86400; SameSite=Lax"; // Ensure it survives page refresh
               } else {
                 document.cookie = "trial_access=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
@@ -200,7 +200,7 @@ function HomeContent() {
         if (!data.hasPaid) {
           const count = (data.loginCount || 0) + 1;
           await updateDoc(userRef, { loginCount: count }).catch(console.error);
-          if (count <= 2) {
+          if (count <= 10) {
             document.cookie = "trial_access=true; path=/; max-age=86400; SameSite=Lax"; // 24 hours
           } else {
             document.cookie = "trial_access=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
