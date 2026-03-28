@@ -41,6 +41,26 @@ export default async function RootLayout({children}: {children: React.ReactNode}
       <body suppressHydrationWarning className="font-sans">
         {children}
         {showAIAssistant && <AIAssistant />}
+        
+        {/* ConvoCore Assistant */}
+        <Script id="convocore-assistant" strategy="afterInteractive">
+          {`
+            (function() {
+                window.VG_CONFIG = {
+                    ID: "VLArdxsOd2U2gEPLZQjk",
+                    region: 'eu', 
+                    render: 'popup', 
+                    stylesheets: [
+                        "https://cdn.convocore.ai/vg_live_build/styles.css",
+                    ],
+                }
+                var VG_SCRIPT = document.createElement("script");
+                VG_SCRIPT.src = "https://cdn.convocore.ai/vg_live_build/vg_bundle.js";
+                VG_SCRIPT.defer = true; 
+                document.body.appendChild(VG_SCRIPT);
+            })()
+          `}
+        </Script>
       </body>
     </html>
   );
